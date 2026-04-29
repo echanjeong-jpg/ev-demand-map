@@ -12,20 +12,17 @@ import pydeck as pdk
 import plotly.express as px
 import streamlit as st
 
-
 # =========================================================
 # 기본 설정
 # =========================================================
 BASE_DIR = Path(__file__).resolve().parent
 
-PRED_CSV_PATH = BASE_DIR / '/Users/jeong-echan/Desktop/GRU 학습결과 1/gru_test_predictions_simple.csv'
-META_JSON_PATH = BASE_DIR / '/Users/jeong-echan/Desktop/tensor2/meta.json'
-AREA_EXCEL_PATH = BASE_DIR / '/Users/jeong-echan/Desktop/tensor2/생활권역ID기준_행정동목록.xlsx'
+PRED_CSV_PATH = BASE_DIR / "gru_test_predictions_simple.csv"
+META_JSON_PATH = BASE_DIR / "meta.json"
+AREA_EXCEL_PATH = BASE_DIR / "생활권역ID기준_행정동목록.xlsx"
 
-SHP_PATH = BASE_DIR / "/Users/jeong-echan/Desktop/tensor2/UPIS_SHP_ZON100.shp"
+SHP_PATH = BASE_DIR / "UPIS_SHP_ZON100.shp"
 
-# 업로드된 SHP에 .prj가 없으므로 좌표계를 수동 지정
-# 지도 위치가 이상하면 5174 → 5181로 변경해서 테스트
 SOURCE_EPSG = 5174
 TARGET_EPSG = 4326
 
