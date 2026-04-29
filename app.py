@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 PRED_CSV_PATH = BASE_DIR / "gru_test_predictions_simple.csv"
 META_JSON_PATH = BASE_DIR / "meta.json"
-AREA_EXCEL_PATH = BASE_DIR / "생활권역ID기준_행정동목록.xlsx"
+AREA_EXCEL_PATH = BASE_DIR / "area_info.xlsx"
 
 SHP_PATH = BASE_DIR / "UPIS_SHP_ZON100.shp"
 
