@@ -2729,8 +2729,8 @@ with st.expander("선택 시각 전체 예측 데이터 보기"):
     if "y_true_kwh" in table_df.columns:
         show_cols.append("y_true_kwh")
 
-    st.dataframe(
-        table_df[show_cols].rename(columns={
+    display_df = table_df[show_cols].rename(
+        columns={
             "datetime": "일시",
             "sample_idx": "test_sample_idx",
             "global_time_idx": "전체_time_idx",
@@ -2740,7 +2740,11 @@ with st.expander("선택 시각 전체 예측 데이터 보기"):
             "생활권역표시명": "생활권역",
             "predicted_kwh": "예측 충전량_kWh",
             "y_true_kwh": "실제 충전량_kWh",
-        }),
+        }
+    )
+
+    st.dataframe(
+        display_df,
         use_container_width=True,
         hide_index=True,
     )
