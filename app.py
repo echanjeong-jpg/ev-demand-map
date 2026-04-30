@@ -126,7 +126,8 @@ st.markdown(
         font-weight: 800;
     }
 
-    div[data-testid="stSelectbox"] label {
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stToggle"] label {
         font-weight: 800;
         color: #5A6270;
         font-size: 13px;
@@ -136,6 +137,15 @@ st.markdown(
         background: #F8FAFD;
         border-radius: 14px;
         border-color: #E6ECF3;
+        min-height: 46px;
+        box-shadow: 0 4px 16px rgba(35, 55, 80, 0.035);
+    }
+
+    div[data-testid="stToggle"] {
+        background: #F8FAFD;
+        border: 1px solid #E6ECF3;
+        border-radius: 14px;
+        padding: 8px 14px 6px 14px;
         min-height: 46px;
         box-shadow: 0 4px 16px rgba(35, 55, 80, 0.035);
     }
@@ -170,11 +180,34 @@ st.markdown(
         margin-bottom: 0.7rem;
     }
 
+    .summary-combined-card {
+        background: #F8FAFD;
+        border-radius: 18px;
+        padding: 16px 16px;
+        border: 1px solid #E8EEF5;
+        margin-top: 8px;
+        margin-bottom: 6px;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    .summary-item {
+        background: #FFFFFF;
+        border-radius: 15px;
+        padding: 14px 14px;
+        border: 1px solid #E8EEF5;
+        min-height: 150px;
+    }
+
     .mini-label {
         color: #8A93A3;
         font-size: 12px;
         font-weight: 800;
-        margin-bottom: 3px;
+        margin-bottom: 4px;
     }
 
     .mini-title {
@@ -182,29 +215,21 @@ st.markdown(
         font-size: 15px;
         font-weight: 900;
         margin-bottom: 3px;
+        line-height: 1.3;
     }
 
     .mini-id {
         color: #2E8B55;
         font-size: 12px;
         font-weight: 900;
-        margin-bottom: 6px;
+        margin-bottom: 10px;
     }
 
     .mini-value {
         color: #222633;
-        font-size: 24px;
+        font-size: 23px;
         font-weight: 900;
         letter-spacing: -0.04em;
-    }
-
-    .summary-mini-card {
-        background: #F8FAFD;
-        border-radius: 16px;
-        padding: 12px 14px;
-        border: 1px solid #E8EEF5;
-        margin-top: 8px;
-        margin-bottom: 8px;
     }
 
     .legend-wrap {
@@ -225,19 +250,107 @@ st.markdown(
         background: linear-gradient(90deg, #D9E9FF, #76A8FF, #2E5BEA, #20145C);
     }
 
+    .rank-row-custom {
+        display: grid;
+        grid-template-columns: 24px minmax(120px, 1fr) 150px 62px;
+        gap: 10px;
+        align-items: center;
+        margin: 9px 0;
+    }
+
+    .rank-num {
+        color: #202532;
+        font-weight: 900;
+        font-size: 13px;
+    }
+
     .rank-label {
-        font-weight: 800;
+        font-weight: 850;
         color: #303644;
         font-size: 13px;
         line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .rank-track {
+        height: 8px;
+        background: #E4ECF6;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .rank-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #67A8FF, #1F6FE5);
+        border-radius: 999px;
     }
 
     .rank-value {
         font-weight: 900;
         color: #303644;
-        font-size: 13px;
+        font-size: 12px;
         text-align: right;
         line-height: 1.25;
+    }
+
+    .alert-card {
+        background: #F8FAFD;
+        border: 1px solid #E3EAF3;
+        border-radius: 16px;
+        padding: 13px 14px;
+        margin-bottom: 10px;
+    }
+
+    .alert-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .alert-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 4px 9px;
+        font-size: 11px;
+        font-weight: 900;
+        color: #FFFFFF;
+        background: #2E6BEA;
+        white-space: nowrap;
+    }
+
+    .alert-badge.hot {
+        background: #E74C5B;
+    }
+
+    .alert-badge.watch {
+        background: #F59E0B;
+    }
+
+    .alert-title {
+        color: #222633;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1.35;
+        margin-bottom: 5px;
+    }
+
+    .alert-meta {
+        color: #7C8594;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+
+    .alert-value {
+        color: #222633;
+        font-size: 13px;
+        font-weight: 900;
+        margin-top: 6px;
     }
 
     .muted {
@@ -274,10 +387,6 @@ st.markdown(
 
     .mapboxgl-control-container {
         opacity: 0.92;
-    }
-
-    div[data-testid="stProgress"] > div > div > div {
-        background-color: #2680EB;
     }
     </style>
     """,
@@ -337,21 +446,33 @@ def render_legend() -> None:
     )
 
 
-def compact_summary_card(
-    label: str,
-    area_name: str,
-    area_id: str,
-    value_label: str,
-    value: float,
+def compact_summary_pair(
+    max_label: str,
+    max_id: str,
+    max_value: float,
+    min_label: str,
+    min_id: str,
+    min_value: float,
 ) -> None:
     st.markdown(
         f"""
-        <div class="summary-mini-card">
-            <div class="mini-label">{label}</div>
-            <div class="mini-title">{area_name}</div>
-            <div class="mini-id">{area_id}</div>
-            <div class="mini-label">{value_label}</div>
-            <div class="mini-value">{value:.2f} kWh</div>
+        <div class="summary-combined-card">
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="mini-label">최대 수요 생활권</div>
+                    <div class="mini-title">{max_label}</div>
+                    <div class="mini-id">{max_id}</div>
+                    <div class="mini-label">최대 예측 수요</div>
+                    <div class="mini-value">{max_value:.2f} kWh</div>
+                </div>
+                <div class="summary-item">
+                    <div class="mini-label">최소 수요 생활권</div>
+                    <div class="mini-title">{min_label}</div>
+                    <div class="mini-id">{min_id}</div>
+                    <div class="mini-label">최소 예측 수요</div>
+                    <div class="mini-value">{min_value:.2f} kWh</div>
+                </div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -807,18 +928,35 @@ def draw_ranking(top_df: pd.DataFrame):
         st.info("표시할 랭킹 데이터가 없습니다.")
         return
 
-    max_v = float(top_df["predicted_kwh"].max())
+    vmax = float(top_df["predicted_kwh"].max())
+    vmin = float(top_df["predicted_kwh"].min())
+
+    # 막대 차이를 더 명확히 보이게 하기 위한 보정 스케일
+    # 1위 72, 2위 43처럼 차이가 큰 경우 시각적으로 더 분명해짐.
+    denom = max(vmax - vmin, 1e-9)
+
+    rows_html = ""
 
     for i, row in enumerate(top_df.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
         value = float(getattr(row, "predicted_kwh"))
-        pct = 0.0 if max_v == 0 else value / max_v
 
-        r1, r2, r3, r4 = st.columns([0.09, 0.43, 0.30, 0.18])
-        r1.markdown(f"**{i}**")
-        r2.markdown(f"<span class='rank-label'>{label}</span>", unsafe_allow_html=True)
-        r3.progress(float(pct))
-        r4.markdown(f"<div class='rank-value'>{value:,.1f}</div>", unsafe_allow_html=True)
+        normalized = (value - vmin) / denom
+        pct = 22 + normalized * 78
+        pct = float(np.clip(pct, 8, 100))
+
+        rows_html += f"""
+        <div class="rank-row-custom">
+            <div class="rank-num">{i}</div>
+            <div class="rank-label">{label}</div>
+            <div class="rank-track">
+                <div class="rank-fill" style="width:{pct:.1f}%;"></div>
+            </div>
+            <div class="rank-value">{value:,.1f}</div>
+        </div>
+        """
+
+    st.markdown(rows_html, unsafe_allow_html=True)
 
 
 def draw_alerts(top_df: pd.DataFrame, selected_time: str):
@@ -827,26 +965,42 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         return
 
     alert_rows = top_df.head(3).copy()
+    cards_html = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
         value = float(getattr(row, "predicted_kwh"))
 
         if i == 1:
+            badge = "최고수요"
+            badge_class = "hot"
             message = f"{label} — 선택 시각 최고 수요 예상"
+            guide = "해당 생활권의 충전기 가용 상태와 대기 가능성을 우선 확인하세요."
         elif i == 2:
+            badge = "집중권역"
+            badge_class = ""
             message = f"{label} — 충전 수요 집중 권역"
+            guide = "인근 생활권과의 수요 분산 가능성을 함께 확인하세요."
         else:
+            badge = "주의"
+            badge_class = "watch"
             message = f"{label} — 운영 여유 확인 필요"
+            guide = "수요 증가 가능성이 있으므로 운영 여유를 모니터링하세요."
 
-        col_msg, col_time = st.columns([0.78, 0.22])
-        with col_msg:
-            st.markdown(f"**{message}**")
-            st.caption(f"예측 {value:,.1f} kWh")
-        with col_time:
-            st.markdown(f"**{selected_time}**")
-        if i < len(alert_rows):
-            st.divider()
+        cards_html += f"""
+        <div class="alert-card">
+            <div class="alert-top">
+                <div>
+                    <div class="alert-title">{message}</div>
+                    <div class="alert-meta">{guide}</div>
+                    <div class="alert-value">예측 {value:,.1f} kWh · {selected_time}</div>
+                </div>
+                <div class="alert-badge {badge_class}">{badge}</div>
+            </div>
+        </div>
+        """
+
+    st.markdown(cards_html, unsafe_allow_html=True)
 
 
 def draw_area_detail(
@@ -927,13 +1081,10 @@ with st.container(border=True):
         )
 
     with c3:
-        view_mode = st.selectbox(
-            "지도 표시 방식",
-            ["2D 히트맵", "3D 막대"],
-            index=0,
+        use_3d_column = st.toggle(
+            "3D 막대 표시",
+            value=False,
         )
-
-    use_3d_column = view_mode == "3D 막대"
 
     zone_label_map = area_info.copy()
     zone_label_map = zone_label_map[
@@ -1019,8 +1170,6 @@ with main_left:
         )
 
         deck = make_deck(map_gdf, use_3d_column=use_3d_column)
-
-        # 오른쪽 요약+랭킹과 하단을 맞추기 위해 지도 높이를 조정
         st.pydeck_chart(deck, use_container_width=True, height=610)
         render_legend()
 
@@ -1045,20 +1194,13 @@ with main_right:
     with st.container(border=True):
         card_title("선택 시각 요약")
 
-        compact_summary_card(
-            label="최대 수요 생활권",
-            area_name=max_label,
-            area_id=max_zone_id,
-            value_label="최대 예측 수요",
-            value=float(max_row["predicted_kwh"]),
-        )
-
-        compact_summary_card(
-            label="최소 수요 생활권",
-            area_name=min_label,
-            area_id=min_zone_id,
-            value_label="최소 예측 수요",
-            value=float(min_row["predicted_kwh"]),
+        compact_summary_pair(
+            max_label=max_label,
+            max_id=max_zone_id,
+            max_value=float(max_row["predicted_kwh"]),
+            min_label=min_label,
+            min_id=min_zone_id,
+            min_value=float(min_row["predicted_kwh"]),
         )
 
     top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
@@ -1070,8 +1212,6 @@ with main_right:
 
     with st.container(border=True):
         card_title("수요 상위 권역 랭킹")
-
-        # 지도 하단과 높이를 맞추기 위해 7개 표시
         draw_ranking(top10.head(7))
 
 
