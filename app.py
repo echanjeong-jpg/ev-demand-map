@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Dict, Tuple
+from textwrap import dedent
 
 import numpy as np
 import pandas as pd
@@ -38,6 +39,17 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+
+# =========================================================
+# HTML 렌더링 유틸
+# =========================================================
+def render_html(html: str) -> None:
+    """
+    Streamlit markdown에서 HTML이 코드블록처럼 보이는 문제 방지.
+    공통 들여쓰기와 앞뒤 공백을 제거한 뒤 렌더링한다.
+    """
+    st.markdown(dedent(html).strip(), unsafe_allow_html=True)
 
 
 # =========================================================
@@ -730,7 +742,8 @@ def make_daily_pattern_chart(pred: pd.DataFrame, selected_date: str, selected_zo
 
 def render_kpi_card(label: str, value: str, unit: str = "", red: bool = False):
     value_class = "metric-value metric-red" if red else "metric-value"
-    st.markdown(
+
+    render_html(
         f"""
         <div class="metric-card">
             <div class="metric-label">{label}</div>
@@ -739,55 +752,65 @@ def render_kpi_card(label: str, value: str, unit: str = "", red: bool = False):
                 <span class="metric-unit">{unit}</span>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
 def build_ranking_html(top_df: pd.DataFrame) -> str:
     if top_df.empty:
-        return "<div class='info-card'>표시할 랭킹 데이터가 없습니다.</div>"
+        return dedent(
+            """
+            <div class="info-card">
+                <div class="panel-title">수요 상위 권역 랭킹</div>
+                <div>표시할 랭킹 데이터가 없습니다.</div>
+            </div>
+            """
+        ).strip()
 
     max_v = top_df["predicted_kwh"].max()
-    html = """
-    <div class="info-card">
-        <div class="panel-title">수요 상위 권역 랭킹</div>
-    """
+    rows = ""
 
     for i, row in enumerate(top_df.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
         value = float(getattr(row, "predicted_kwh"))
         pct = 0 if max_v == 0 else value / max_v * 100
 
-        html += f"""
-        <div class="rank-row">
-            <div class="rank-num">{i}</div>
-            <div class="rank-name">{label}</div>
-            <div class="rank-bar-bg">
-                <div class="rank-bar" style="width:{pct:.1f}%"></div>
+        rows += dedent(
+            f"""
+            <div class="rank-row">
+                <div class="rank-num">{i}</div>
+                <div class="rank-name">{label}</div>
+                <div class="rank-bar-bg">
+                    <div class="rank-bar" style="width:{pct:.1f}%"></div>
+                </div>
+                <div class="rank-kwh">{value:,.1f} kWh</div>
             </div>
-            <div class="rank-kwh">{value:,.1f} kWh</div>
+            """
+        ).strip()
+
+    return dedent(
+        f"""
+        <div class="info-card">
+            <div class="panel-title">수요 상위 권역 랭킹</div>
+            {rows}
         </div>
         """
-
-    html += "</div>"
-    return html
+    ).strip()
 
 
 def build_alerts_html(top_df: pd.DataFrame, selected_time: str) -> str:
     if top_df.empty:
-        return """
-        <div class="info-card">
-            <div class="panel-title">수요 급증 알림</div>
-            <div>수요 알림을 생성할 수 없습니다.</div>
-        </div>
-        """
+        return dedent(
+            """
+            <div class="info-card">
+                <div class="panel-title">수요 급증 알림</div>
+                <div>수요 알림을 생성할 수 없습니다.</div>
+            </div>
+            """
+        ).strip()
 
     alert_rows = top_df.head(4).copy()
-    html = """
-    <div class="info-card">
-        <div class="panel-title">수요 급증 알림</div>
-    """
+    rows = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -802,40 +825,50 @@ def build_alerts_html(top_df: pd.DataFrame, selected_time: str) -> str:
         else:
             message = f"{label} — 충전량 모니터링 권장"
 
-        html += f"""
-        <div class="alert-row">
-            <div class="alert-text">
-                {message}<br>
-                <span style="color:#8B95A6;font-weight:600;">예측 {value:,.1f} kWh</span>
+        rows += dedent(
+            f"""
+            <div class="alert-row">
+                <div class="alert-text">
+                    {message}<br>
+                    <span style="color:#8B95A6;font-weight:600;">예측 {value:,.1f} kWh</span>
+                </div>
+                <div class="alert-time">{selected_time}</div>
             </div>
-            <div class="alert-time">{selected_time}</div>
+            """
+        ).strip()
+
+    return dedent(
+        f"""
+        <div class="info-card">
+            <div class="panel-title">수요 급증 알림</div>
+            {rows}
         </div>
         """
-
-    html += "</div>"
-    return html
+    ).strip()
 
 
 def build_summary_html(max_label, max_zone_id, max_value, min_label, min_zone_id, min_value) -> str:
-    return f"""
-    <div class="info-card">
-        <div class="panel-title">선택 시각 요약</div>
+    return dedent(
+        f"""
+        <div class="info-card">
+            <div class="panel-title">선택 시각 요약</div>
 
-        <div style="margin-bottom:18px;">
-            <div style="color:#8B95A6;font-weight:800;font-size:14px;">최대 수요 생활권</div>
-            <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{max_label}</div>
-            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{max_zone_id}</div>
-            <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{max_value:.2f} kWh</div>
-        </div>
+            <div style="margin-bottom:18px;">
+                <div style="color:#8B95A6;font-weight:800;font-size:14px;">최대 수요 생활권</div>
+                <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{max_label}</div>
+                <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{max_zone_id}</div>
+                <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{max_value:.2f} kWh</div>
+            </div>
 
-        <div>
-            <div style="color:#8B95A6;font-weight:800;font-size:14px;">최소 수요 생활권</div>
-            <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{min_label}</div>
-            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{min_zone_id}</div>
-            <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{min_value:.2f} kWh</div>
+            <div>
+                <div style="color:#8B95A6;font-weight:800;font-size:14px;">최소 수요 생활권</div>
+                <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{min_label}</div>
+                <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{min_zone_id}</div>
+                <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{min_value:.2f} kWh</div>
+            </div>
         </div>
-    </div>
-    """
+        """
+    ).strip()
 
 
 def build_detail_html(
@@ -850,53 +883,58 @@ def build_detail_html(
     peak_kwh: float,
 ) -> str:
     dongs_html = ""
+
     if selected_dongs:
-        dongs_html = f"""
-        <div style="font-size:14px;color:#8B95A6;font-weight:800;margin-bottom:4px;">
-            포함 행정동
-        </div>
-        <div style="font-size:14px;color:#3A404C;line-height:1.6;margin-bottom:16px;">
-            {selected_dongs}
+        dongs_html = dedent(
+            f"""
+            <div style="font-size:14px;color:#8B95A6;font-weight:800;margin-bottom:4px;">
+                포함 행정동
+            </div>
+            <div style="font-size:14px;color:#3A404C;line-height:1.6;margin-bottom:16px;">
+                {selected_dongs}
+            </div>
+            """
+        ).strip()
+
+    return dedent(
+        f"""
+        <div class="info-card">
+            <div class="panel-title">선택 생활권 상세</div>
+
+            <div style="font-size:21px;font-weight:900;color:#252A36;margin-bottom:8px;">
+                {selected_label}
+            </div>
+            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-bottom:12px;">
+                {selected_zone_id}
+            </div>
+
+            {dongs_html}
+
+            <div class="detail-grid">
+                <div class="mini-card">
+                    <div class="mini-label">현재 예측</div>
+                    <div class="mini-value">{zone_pred_kwh:.1f}</div>
+                    <div class="mini-unit">kWh</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-label">수요 순위</div>
+                    <div class="mini-value">{int(zone_rank)}</div>
+                    <div class="mini-unit">/ {n_zones}</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-label">일일 총량</div>
+                    <div class="mini-value">{total_day_kwh:.0f}</div>
+                    <div class="mini-unit">kWh</div>
+                </div>
+                <div class="mini-card">
+                    <div class="mini-label">피크 시간</div>
+                    <div class="mini-value">{peak_time}</div>
+                    <div class="mini-unit">{peak_kwh:.1f} kWh</div>
+                </div>
+            </div>
         </div>
         """
-
-    return f"""
-    <div class="info-card">
-        <div class="panel-title">선택 생활권 상세</div>
-
-        <div style="font-size:21px;font-weight:900;color:#252A36;margin-bottom:8px;">
-            {selected_label}
-        </div>
-        <div style="font-size:13px;color:#3D9657;font-weight:800;margin-bottom:12px;">
-            {selected_zone_id}
-        </div>
-
-        {dongs_html}
-
-        <div class="detail-grid">
-            <div class="mini-card">
-                <div class="mini-label">현재 예측</div>
-                <div class="mini-value">{zone_pred_kwh:.1f}</div>
-                <div class="mini-unit">kWh</div>
-            </div>
-            <div class="mini-card">
-                <div class="mini-label">수요 순위</div>
-                <div class="mini-value">{int(zone_rank)}</div>
-                <div class="mini-unit">/ {n_zones}</div>
-            </div>
-            <div class="mini-card">
-                <div class="mini-label">일일 총량</div>
-                <div class="mini-value">{total_day_kwh:.0f}</div>
-                <div class="mini-unit">kWh</div>
-            </div>
-            <div class="mini-card">
-                <div class="mini-label">피크 시간</div>
-                <div class="mini-value">{peak_time}</div>
-                <div class="mini-unit">{peak_kwh:.1f} kWh</div>
-            </div>
-        </div>
-    </div>
-    """
+    ).strip()
 
 
 # =========================================================
@@ -1024,28 +1062,26 @@ with kpi4:
 left_col, right_col = st.columns([1.85, 1.0], gap="large")
 
 with left_col:
-    st.markdown(
+    render_html(
         f"""
         <div class="section-title">서울시 생활권별 충전 수요 히트맵</div>
         <div class="section-caption">
             {selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · 전체 Time Index {global_time_idx}
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     deck = make_deck(map_gdf, use_3d_column=use_3d_column)
     st.pydeck_chart(deck, use_container_width=True, height=650)
 
-    st.markdown(
+    render_html(
         """
         <div class="legend-wrap">
             <span>낮음</span>
             <div class="legend-bar"></div>
             <span>높음</span>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 with right_col:
@@ -1066,7 +1102,7 @@ with right_col:
         else min_zone_id
     )
 
-    st.markdown(
+    render_html(
         build_summary_html(
             max_label=max_label,
             max_zone_id=max_zone_id,
@@ -1074,8 +1110,7 @@ with right_col:
             min_label=min_label,
             min_zone_id=min_zone_id,
             min_value=float(min_row["predicted_kwh"]),
-        ),
-        unsafe_allow_html=True,
+        )
     )
 
     top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
@@ -1085,7 +1120,7 @@ with right_col:
         how="left",
     )
 
-    st.markdown(build_ranking_html(top10.head(5)), unsafe_allow_html=True)
+    render_html(build_ranking_html(top10.head(5)))
 
 
 # =========================================================
@@ -1094,7 +1129,7 @@ with right_col:
 trend_col, alert_col = st.columns([1.8, 1.0], gap="large")
 
 with trend_col:
-    st.markdown('<div class="section-title">시간대별 수요 추이</div>', unsafe_allow_html=True)
+    render_html('<div class="section-title">시간대별 수요 추이</div>')
 
     total_fig = make_total_demand_chart(
         pred=pred,
@@ -1108,7 +1143,7 @@ with trend_col:
         st.info("선택 날짜의 시간대별 수요 데이터가 없습니다.")
 
 with alert_col:
-    st.markdown(build_alerts_html(top10, selected_time), unsafe_allow_html=True)
+    render_html(build_alerts_html(top10, selected_time))
 
 
 # =========================================================
@@ -1161,7 +1196,7 @@ else:
     peak_kwh = 0
 
 with detail_left:
-    st.markdown(
+    render_html(
         build_detail_html(
             selected_label=selected_label,
             selected_zone_id=selected_zone_id,
@@ -1172,15 +1207,11 @@ with detail_left:
             total_day_kwh=total_day_kwh,
             peak_time=peak_time,
             peak_kwh=peak_kwh,
-        ),
-        unsafe_allow_html=True,
+        )
     )
 
 with detail_right:
-    st.markdown(
-        '<div class="section-title">선택 생활권 30분 단위 예측 패턴</div>',
-        unsafe_allow_html=True,
-    )
+    render_html('<div class="section-title">선택 생활권 30분 단위 예측 패턴</div>')
 
     fig = make_daily_pattern_chart(
         pred=pred,
