@@ -57,14 +57,14 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 1.0rem;
-        padding-bottom: 2.5rem;
-        max-width: 1760px;
+        padding-top: 2.6rem;
+        padding-bottom: 2.2rem;
+        max-width: 1540px;
     }
 
     header[data-testid="stHeader"] {
-        background: rgba(238, 243, 248, 0.78);
-        backdrop-filter: blur(10px);
+        background: rgba(238, 243, 248, 0.0);
+        height: 0rem;
     }
 
     div[data-testid="stToolbar"] {
@@ -86,27 +86,34 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlock"] {
-        gap: 1rem;
+        gap: 0.85rem;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: #FFFFFF;
+        border-radius: 22px;
+        box-shadow: 0 8px 28px rgba(35, 55, 80, 0.065);
+        border: 1px solid rgba(220, 228, 238, 0.9);
     }
 
     div[data-testid="stMetric"] {
         background: #FFFFFF;
-        border: 1px solid rgba(255, 255, 255, 0.85);
-        padding: 20px 22px;
-        border-radius: 22px;
-        box-shadow: 0 8px 28px rgba(35, 55, 80, 0.06);
-        min-height: 118px;
+        border: 1px solid rgba(220, 228, 238, 0.9);
+        padding: 18px 20px;
+        border-radius: 20px;
+        box-shadow: 0 8px 24px rgba(35, 55, 80, 0.055);
+        min-height: 108px;
     }
 
     div[data-testid="stMetricLabel"] {
         color: #8A93A3;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 800;
     }
 
     div[data-testid="stMetricValue"] {
         color: #232633;
-        font-size: 32px;
+        font-size: 29px;
         font-weight: 900;
         letter-spacing: -0.04em;
     }
@@ -116,61 +123,65 @@ st.markdown(
     }
 
     div[data-testid="stSelectbox"] label,
-    div[data-testid="stToggle"] label {
+    div[data-testid="stCheckbox"] label {
         font-weight: 800;
         color: #5A6270;
-        font-size: 14px;
+        font-size: 13px;
     }
 
     div[data-baseweb="select"] > div {
         background: #F8FAFD;
-        border-radius: 16px;
+        border-radius: 14px;
         border-color: #E6ECF3;
-        min-height: 52px;
-        box-shadow: 0 5px 20px rgba(35, 55, 80, 0.04);
+        min-height: 46px;
+        box-shadow: 0 4px 16px rgba(35, 55, 80, 0.035);
     }
 
-    div[data-testid="stToggle"] {
+    div[data-testid="stCheckbox"] {
         background: #F8FAFD;
         border: 1px solid #E6ECF3;
-        border-radius: 16px;
-        padding: 11px 16px 8px 16px;
-        min-height: 52px;
-        box-shadow: 0 5px 20px rgba(35, 55, 80, 0.04);
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF;
-        border-radius: 24px;
-        box-shadow: 0 10px 34px rgba(35, 55, 80, 0.07);
-        border: 1px solid rgba(255, 255, 255, 0.85);
-    }
-
-    .section-header {
-        margin-bottom: 0.75rem;
+        border-radius: 14px;
+        padding: 9px 14px 7px 14px;
+        min-height: 46px;
+        box-shadow: 0 4px 16px rgba(35, 55, 80, 0.035);
     }
 
     .section-title {
-        font-size: 25px;
+        font-size: 23px;
         font-weight: 900;
         color: #222633;
         letter-spacing: -0.04em;
-        margin: 0;
+        margin: 0 0 4px 0;
     }
 
     .section-subtitle {
         color: #7C8594;
         font-size: 13px;
         font-weight: 600;
-        margin-top: 4px;
-        margin-bottom: 0;
+        margin: 0 0 12px 0;
+    }
+
+    .card-title {
+        font-size: 20px;
+        font-weight: 900;
+        color: #222633;
+        letter-spacing: -0.035em;
+        margin-bottom: 0.35rem;
+    }
+
+    .card-subtitle {
+        color: #7C8594;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 0.7rem;
     }
 
     .legend-wrap {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-top: 8px;
+        margin-top: 7px;
+        margin-bottom: 0px;
         color: #788395;
         font-weight: 800;
         font-size: 13px;
@@ -183,14 +194,10 @@ st.markdown(
         background: linear-gradient(90deg, #D9E9FF, #76A8FF, #2E5BEA, #20145C);
     }
 
-    .rank-row {
-        padding: 0.15rem 0;
-    }
-
     .rank-label {
         font-weight: 800;
         color: #303644;
-        font-size: 14px;
+        font-size: 13px;
     }
 
     .rank-value {
@@ -215,6 +222,7 @@ st.markdown(
     .stPlotlyChart {
         border-radius: 18px;
         overflow: hidden;
+        background: white;
     }
 
     iframe {
@@ -227,17 +235,69 @@ st.markdown(
     }
 
     hr {
-        margin-top: 0.8rem;
-        margin-bottom: 0.8rem;
+        margin-top: 0.7rem;
+        margin-bottom: 0.7rem;
     }
 
     .mapboxgl-control-container {
-        opacity: 0.9;
+        opacity: 0.92;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+
+# =========================================================
+# 화면 보조 함수
+# =========================================================
+def section_title(title: str, subtitle: str | None = None) -> None:
+    if subtitle:
+        st.markdown(
+            f"""
+            <div class="section-title">{title}</div>
+            <div class="section-subtitle">{subtitle}</div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f"""
+            <div class="section-title">{title}</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def card_title(title: str, subtitle: str | None = None) -> None:
+    if subtitle:
+        st.markdown(
+            f"""
+            <div class="card-title">{title}</div>
+            <div class="card-subtitle">{subtitle}</div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f"""
+            <div class="card-title">{title}</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def render_legend() -> None:
+    st.markdown(
+        """
+        <div class="legend-wrap">
+            <span>낮음</span>
+            <div class="legend-bar"></div>
+            <span>높음</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # =========================================================
@@ -317,41 +377,6 @@ def add_datetime_to_predictions(pred: pd.DataFrame, meta: Dict) -> pd.DataFrame:
     pred["daily_slot"] = pred["hour"] * 2 + (pred["minute"] // 30)
 
     return pred
-
-
-def section_header(title: str, subtitle: str | None = None) -> None:
-    if subtitle:
-        st.markdown(
-            f"""
-            <div class="section-header">
-                <p class="section-title">{title}</p>
-                <p class="section-subtitle">{subtitle}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f"""
-            <div class="section-header">
-                <p class="section-title">{title}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-def render_legend() -> None:
-    st.markdown(
-        """
-        <div class="legend-wrap">
-            <span>낮음</span>
-            <div class="legend-bar"></div>
-            <span>높음</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 # =========================================================
@@ -656,7 +681,7 @@ def make_total_demand_chart(pred: pd.DataFrame, selected_date: str, selected_tim
     )
 
     fig.update_layout(
-        height=330,
+        height=310,
         margin=dict(l=4, r=4, t=10, b=8),
         paper_bgcolor="white",
         plot_bgcolor="white",
@@ -703,7 +728,7 @@ def make_daily_pattern_chart(pred: pd.DataFrame, selected_date: str, selected_zo
     )
 
     fig.update_layout(
-        height=330,
+        height=310,
         margin=dict(l=4, r=4, t=10, b=8),
         paper_bgcolor="white",
         plot_bgcolor="white",
@@ -717,7 +742,7 @@ def make_daily_pattern_chart(pred: pd.DataFrame, selected_date: str, selected_zo
 
 
 # =========================================================
-# 화면 렌더링 보조 함수
+# 화면 렌더링 함수
 # =========================================================
 def draw_ranking(top_df: pd.DataFrame):
     if top_df.empty:
@@ -731,7 +756,7 @@ def draw_ranking(top_df: pd.DataFrame):
         value = float(getattr(row, "predicted_kwh"))
         pct = 0.0 if max_v == 0 else value / max_v
 
-        r1, r2, r3, r4 = st.columns([0.12, 0.42, 0.30, 0.16])
+        r1, r2, r3, r4 = st.columns([0.1, 0.42, 0.30, 0.18])
         r1.markdown(f"**{i}**")
         r2.markdown(f"<span class='rank-label'>{label}</span>", unsafe_allow_html=True)
         r3.progress(float(pct))
@@ -743,7 +768,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
-    alert_rows = top_df.head(4).copy()
+    alert_rows = top_df.head(3).copy()
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -753,10 +778,8 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
             message = f"{label} — 선택 시각 최고 수요 예상"
         elif i == 2:
             message = f"{label} — 충전 수요 집중 권역"
-        elif i == 3:
-            message = f"{label} — 운영 여유 확인 필요"
         else:
-            message = f"{label} — 충전량 모니터링 권장"
+            message = f"{label} — 운영 여유 확인 필요"
 
         col_msg, col_time = st.columns([0.78, 0.22])
         with col_msg:
@@ -786,13 +809,13 @@ def draw_area_detail(
         st.markdown("**포함 행정동**")
         st.caption(selected_dongs)
 
-    m1, m2 = st.columns(2)
-    m3, m4 = st.columns(2)
+    d1, d2 = st.columns(2)
+    d3, d4 = st.columns(2)
 
-    m1.metric("현재 예측", f"{zone_pred_kwh:.1f} kWh")
-    m2.metric("수요 순위", f"{int(zone_rank)} / {n_zones}")
-    m3.metric("일일 총량", f"{total_day_kwh:.0f} kWh")
-    m4.metric("피크 시간", f"{peak_time}", f"{peak_kwh:.1f} kWh")
+    d1.metric("현재 예측", f"{zone_pred_kwh:.1f} kWh")
+    d2.metric("수요 순위", f"{int(zone_rank)} / {n_zones}")
+    d3.metric("일일 총량", f"{total_day_kwh:.0f} kWh")
+    d4.metric("피크 시간", f"{peak_time}", f"{peak_kwh:.1f} kWh")
 
 
 # =========================================================
@@ -810,14 +833,22 @@ except Exception as e:
 
 
 # =========================================================
-# 컨트롤 섹션
+# 상단 여백: Framer iframe 상단 잘림 방지
 # =========================================================
-with st.container(border=True):
-    section_header("예측 조건 설정", "날짜, 시간, 지도 표시 방식, 상세 생활권을 선택합니다.")
+st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+
+
+# =========================================================
+# 컨트롤 영역
+# =========================================================
+control_box = st.container(border=True)
+
+with control_box:
+    section_title("예측 조건 설정", "날짜, 시간, 지도 표시 방식, 상세 생활권을 선택합니다.")
 
     available_dates = sorted(pred["date_str"].unique())
 
-    c1, c2, c3, c4 = st.columns([1.1, 1.1, 1.0, 3.2])
+    c1, c2, c3, c4 = st.columns([1.1, 1.1, 1.1, 3.1])
 
     with c1:
         selected_date = st.selectbox(
@@ -840,7 +871,7 @@ with st.container(border=True):
         )
 
     with c3:
-        use_3d_column = st.toggle(
+        use_3d_column = st.checkbox(
             "3D 막대 표시",
             value=False,
         )
@@ -903,10 +934,12 @@ min_row = pred_filtered.loc[pred_filtered["predicted_kwh"].idxmin()]
 
 
 # =========================================================
-# KPI 섹션
+# KPI 영역
 # =========================================================
-with st.container(border=True):
-    section_header("선택 시각 핵심 지표", f"{selected_dt:%Y-%m-%d %H:%M} 기준 생활권별 예측 결과입니다.")
+kpi_area = st.container(border=True)
+
+with kpi_area:
+    section_title("선택 시각 핵심 지표", f"{selected_dt:%Y-%m-%d %H:%M} 기준 생활권별 예측 결과입니다.")
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
@@ -917,76 +950,74 @@ with st.container(border=True):
 
 
 # =========================================================
-# 메인 분석 섹션: 지도 + 요약/랭킹
+# 지도 + 요약/랭킹 영역
 # =========================================================
-with st.container(border=True):
-    section_header(
-        "생활권별 충전 수요 지도",
-        f"{selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · 전체 Time Index {global_time_idx}",
-    )
+main_left, main_right = st.columns([1.75, 0.95], gap="large")
 
-    map_col, summary_col = st.columns([1.85, 1.0], gap="large")
+with main_left:
+    with st.container(border=True):
+        section_title(
+            "생활권별 충전 수요 지도",
+            f"{selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · 전체 Time Index {global_time_idx}",
+        )
 
-    with map_col:
         deck = make_deck(map_gdf, use_3d_column=use_3d_column)
-        st.pydeck_chart(deck, use_container_width=True, height=650)
+        st.pydeck_chart(deck, use_container_width=True, height=560)
         render_legend()
 
-    with summary_col:
-        max_zone_id = max_row["생활권역ID"]
-        min_zone_id = min_row["생활권역ID"]
+with main_right:
+    max_zone_id = max_row["생활권역ID"]
+    min_zone_id = min_row["생활권역ID"]
 
-        max_area = area_info[area_info["생활권역ID"] == max_zone_id]
-        min_area = area_info[area_info["생활권역ID"] == min_zone_id]
+    max_area = area_info[area_info["생활권역ID"] == max_zone_id]
+    min_area = area_info[area_info["생활권역ID"] == min_zone_id]
 
-        max_label = (
-            max_area["생활권역표시명"].iloc[0]
-            if not max_area.empty
-            else max_zone_id
-        )
-        min_label = (
-            min_area["생활권역표시명"].iloc[0]
-            if not min_area.empty
-            else min_zone_id
-        )
+    max_label = (
+        max_area["생활권역표시명"].iloc[0]
+        if not max_area.empty
+        else max_zone_id
+    )
+    min_label = (
+        min_area["생활권역표시명"].iloc[0]
+        if not min_area.empty
+        else min_zone_id
+    )
 
-        with st.container(border=True):
-            st.subheader("선택 시각 요약")
+    with st.container(border=True):
+        card_title("선택 시각 요약")
 
-            st.markdown("**최대 수요 생활권**")
-            st.write(max_label)
-            st.caption(max_zone_id)
-            st.metric("최대 예측 수요", f"{float(max_row['predicted_kwh']):.2f} kWh")
+        st.markdown("**최대 수요 생활권**")
+        st.write(max_label)
+        st.caption(max_zone_id)
+        st.metric("최대 예측 수요", f"{float(max_row['predicted_kwh']):.2f} kWh")
 
-            st.divider()
+        st.divider()
 
-            st.markdown("**최소 수요 생활권**")
-            st.write(min_label)
-            st.caption(min_zone_id)
-            st.metric("최소 예측 수요", f"{float(min_row['predicted_kwh']):.2f} kWh")
+        st.markdown("**최소 수요 생활권**")
+        st.write(min_label)
+        st.caption(min_zone_id)
+        st.metric("최소 예측 수요", f"{float(min_row['predicted_kwh']):.2f} kWh")
 
-        top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
-        top10 = top10.merge(
-            area_info[["생활권역ID", "생활권역라벨", "생활권역표시명"]],
-            on="생활권역ID",
-            how="left",
-        )
+    top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
+    top10 = top10.merge(
+        area_info[["생활권역ID", "생활권역라벨", "생활권역표시명"]],
+        on="생활권역ID",
+        how="left",
+    )
 
-        with st.container(border=True):
-            st.subheader("수요 상위 권역 랭킹")
-            draw_ranking(top10.head(5))
+    with st.container(border=True):
+        card_title("수요 상위 권역 랭킹")
+        draw_ranking(top10.head(5))
 
 
 # =========================================================
-# 시간대별 분석 섹션
+# 시간대별 분석 영역
 # =========================================================
-with st.container(border=True):
-    section_header("시간대별 수요 변화", "선택한 날짜의 전체 생활권 총 예측 충전량 변화와 주요 알림입니다.")
+trend_col, alert_col = st.columns([1.75, 0.95], gap="large")
 
-    trend_col, alert_col = st.columns([1.8, 1.0], gap="large")
-
-    with trend_col:
-        st.subheader("시간대별 수요 추이")
+with trend_col:
+    with st.container(border=True):
+        section_title("시간대별 수요 추이", "선택한 날짜의 전체 생활권 총 예측 충전량 변화입니다.")
 
         total_fig = make_total_demand_chart(
             pred=pred,
@@ -999,80 +1030,79 @@ with st.container(border=True):
         else:
             st.info("선택 날짜의 시간대별 수요 데이터가 없습니다.")
 
-    with alert_col:
-        with st.container(border=True):
-            st.subheader("수요 급증 알림")
-            draw_alerts(top10, selected_time)
+with alert_col:
+    with st.container(border=True):
+        card_title("수요 급증 알림", "선택 시각 기준 주의가 필요한 권역입니다.")
+        draw_alerts(top10, selected_time)
 
 
 # =========================================================
-# 상세 생활권 분석 섹션
+# 상세 생활권 분석 영역
 # =========================================================
-with st.container(border=True):
-    section_header("선택 생활권 상세 분석", "선택한 생활권의 현재 예측값, 순위, 일중 패턴을 확인합니다.")
+detail_col, pattern_col = st.columns([0.95, 1.75], gap="large")
 
-    detail_col, pattern_col = st.columns([1.0, 1.8], gap="large")
+selected_area = area_info[area_info["생활권역ID"] == selected_zone_id].copy()
 
-    selected_area = area_info[area_info["생활권역ID"] == selected_zone_id].copy()
+if selected_area.empty:
+    selected_label = selected_zone_id
+    selected_dongs = ""
+else:
+    selected_label = selected_area["생활권역표시명"].iloc[0]
+    selected_dongs = (
+        selected_area["행정동명목록"].iloc[0]
+        if "행정동명목록" in selected_area.columns
+        else ""
+    )
 
-    if selected_area.empty:
-        selected_label = selected_zone_id
-        selected_dongs = ""
+zone_now = pred_filtered[pred_filtered["생활권역ID"] == selected_zone_id].copy()
+
+if not zone_now.empty:
+    zone_pred_kwh = float(zone_now["predicted_kwh"].iloc[0])
+    zone_rank = (
+        pred_filtered["predicted_kwh"]
+        .rank(method="min", ascending=False)
+        .loc[zone_now.index[0]]
+    )
+
+    day_zone = pred[
+        (pred["date_str"] == selected_date)
+        & (pred["생활권역ID"] == selected_zone_id)
+    ].copy()
+
+    if not day_zone.empty:
+        peak_row = day_zone.loc[day_zone["predicted_kwh"].idxmax()]
+        total_day_kwh = day_zone["predicted_kwh"].sum()
+        peak_time = peak_row["time_str"]
+        peak_kwh = float(peak_row["predicted_kwh"])
     else:
-        selected_label = selected_area["생활권역표시명"].iloc[0]
-        selected_dongs = (
-            selected_area["행정동명목록"].iloc[0]
-            if "행정동명목록" in selected_area.columns
-            else ""
-        )
-
-    zone_now = pred_filtered[pred_filtered["생활권역ID"] == selected_zone_id].copy()
-
-    if not zone_now.empty:
-        zone_pred_kwh = float(zone_now["predicted_kwh"].iloc[0])
-        zone_rank = (
-            pred_filtered["predicted_kwh"]
-            .rank(method="min", ascending=False)
-            .loc[zone_now.index[0]]
-        )
-
-        day_zone = pred[
-            (pred["date_str"] == selected_date)
-            & (pred["생활권역ID"] == selected_zone_id)
-        ].copy()
-
-        if not day_zone.empty:
-            peak_row = day_zone.loc[day_zone["predicted_kwh"].idxmax()]
-            total_day_kwh = day_zone["predicted_kwh"].sum()
-            peak_time = peak_row["time_str"]
-            peak_kwh = float(peak_row["predicted_kwh"])
-        else:
-            total_day_kwh = 0
-            peak_time = "-"
-            peak_kwh = 0
-    else:
-        zone_pred_kwh = 0
-        zone_rank = 0
         total_day_kwh = 0
         peak_time = "-"
         peak_kwh = 0
+else:
+    zone_pred_kwh = 0
+    zone_rank = 0
+    total_day_kwh = 0
+    peak_time = "-"
+    peak_kwh = 0
 
-    with detail_col:
-        with st.container(border=True):
-            draw_area_detail(
-                selected_label=selected_label,
-                selected_zone_id=selected_zone_id,
-                selected_dongs=selected_dongs,
-                zone_pred_kwh=zone_pred_kwh,
-                zone_rank=int(zone_rank),
-                n_zones=n_zones,
-                total_day_kwh=total_day_kwh,
-                peak_time=peak_time,
-                peak_kwh=peak_kwh,
-            )
+with detail_col:
+    with st.container(border=True):
+        card_title("선택 생활권 상세")
+        draw_area_detail(
+            selected_label=selected_label,
+            selected_zone_id=selected_zone_id,
+            selected_dongs=selected_dongs,
+            zone_pred_kwh=zone_pred_kwh,
+            zone_rank=int(zone_rank),
+            n_zones=n_zones,
+            total_day_kwh=total_day_kwh,
+            peak_time=peak_time,
+            peak_kwh=peak_kwh,
+        )
 
-    with pattern_col:
-        st.subheader("선택 생활권 30분 단위 예측 패턴")
+with pattern_col:
+    with st.container(border=True):
+        section_title("선택 생활권 30분 단위 예측 패턴", "선택한 생활권의 일중 충전 수요 변화를 확인합니다.")
 
         fig = make_daily_pattern_chart(
             pred=pred,
