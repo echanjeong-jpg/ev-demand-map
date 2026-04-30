@@ -81,15 +81,6 @@ st.markdown(
         visibility: hidden;
     }
 
-    .control-panel {
-        background: #FFFFFF;
-        border-radius: 18px;
-        padding: 18px 20px 8px 20px;
-        box-shadow: 0 8px 28px rgba(35, 55, 80, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.75);
-        margin-bottom: 16px;
-    }
-
     .metric-card {
         background: #FFFFFF;
         border-radius: 18px;
@@ -124,7 +115,23 @@ st.markdown(
         color: #D94B55;
     }
 
-    .panel {
+    .section-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #222633;
+        letter-spacing: -0.03em;
+        margin-top: 8px;
+        margin-bottom: 6px;
+    }
+
+    .section-caption {
+        color: #7C8594;
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 10px;
+    }
+
+    .info-card {
         background: #FFFFFF;
         border-radius: 20px;
         padding: 22px;
@@ -139,30 +146,6 @@ st.markdown(
         color: #222633;
         letter-spacing: -0.03em;
         margin-bottom: 16px;
-    }
-
-    .map-panel {
-        background: #FFFFFF;
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 8px 28px rgba(35, 55, 80, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.7);
-        margin-bottom: 18px;
-    }
-
-    .map-title {
-        font-size: 25px;
-        font-weight: 800;
-        color: #222633;
-        letter-spacing: -0.04em;
-    }
-
-    .section-caption {
-        color: #7C8594;
-        font-size: 14px;
-        font-weight: 500;
-        margin-top: -4px;
-        margin-bottom: 12px;
     }
 
     .rank-row {
@@ -235,7 +218,8 @@ st.markdown(
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-top: 10px;
+        margin-top: 8px;
+        margin-bottom: 18px;
         color: #788395;
         font-weight: 700;
         font-size: 13px;
@@ -297,6 +281,10 @@ st.markdown(
         border-radius: 16px;
         overflow: hidden;
     }
+
+    iframe {
+        border-radius: 18px;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -352,7 +340,6 @@ def kwh_to_color(value: float, vmin: float, vmax: float) -> list[int]:
         ratio = (value - vmin) / (vmax - vmin)
         ratio = float(np.clip(ratio, 0.0, 1.0))
 
-    # 낮은 수요: 연한 블루 / 높은 수요: 진한 남색
     r = int(205 - 155 * ratio)
     g = int(222 - 135 * ratio)
     b = int(247 - 25 * ratio)
@@ -427,7 +414,6 @@ def load_predictions(pred_path: Path, meta: Dict) -> Tuple[pd.DataFrame, str, st
     pred["sample_idx"] = pd.to_numeric(pred["sample_idx"], errors="coerce").astype(int)
     pred["zone_idx"] = pd.to_numeric(pred["zone_idx"], errors="coerce").astype(int)
 
-    # 서비스 시각화에서는 음수 충전량을 0으로 보정
     pred[pred_col] = pred[pred_col].clip(lower=0)
 
     zone_ids = meta["zone_ids"]
@@ -504,7 +490,6 @@ def load_living_area_gdf(shp_path: Path, meta_zone_ids: list[str]) -> gpd.GeoDat
 
     gdf = gdf.to_crs(epsg=TARGET_EPSG)
 
-    # 지도 성능 개선
     gdf["geometry"] = gdf["geometry"].simplify(0.00012, preserve_topology=True)
 
     centroid = gdf.geometry.centroid
@@ -555,7 +540,6 @@ def prepare_map_gdf(
     if "행정동명목록" not in gdf.columns:
         gdf["행정동명목록"] = ""
 
-    # GeoJSON 직렬화 대응
     if "datetime" in gdf.columns:
         gdf["datetime"] = gdf["datetime"].astype(str)
 
@@ -760,13 +744,15 @@ def render_kpi_card(label: str, value: str, unit: str = "", red: bool = False):
     )
 
 
-def render_ranking(top_df: pd.DataFrame):
+def build_ranking_html(top_df: pd.DataFrame) -> str:
     if top_df.empty:
-        st.info("표시할 랭킹 데이터가 없습니다.")
-        return
+        return "<div class='info-card'>표시할 랭킹 데이터가 없습니다.</div>"
 
     max_v = top_df["predicted_kwh"].max()
-    html = ""
+    html = """
+    <div class="info-card">
+        <div class="panel-title">수요 상위 권역 랭킹</div>
+    """
 
     for i, row in enumerate(top_df.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -784,16 +770,24 @@ def render_ranking(top_df: pd.DataFrame):
         </div>
         """
 
-    st.markdown(html, unsafe_allow_html=True)
+    html += "</div>"
+    return html
 
 
-def render_alerts(top_df: pd.DataFrame, selected_time: str):
+def build_alerts_html(top_df: pd.DataFrame, selected_time: str) -> str:
     if top_df.empty:
-        st.info("수요 알림을 생성할 수 없습니다.")
-        return
+        return """
+        <div class="info-card">
+            <div class="panel-title">수요 급증 알림</div>
+            <div>수요 알림을 생성할 수 없습니다.</div>
+        </div>
+        """
 
     alert_rows = top_df.head(4).copy()
-    html = ""
+    html = """
+    <div class="info-card">
+        <div class="panel-title">수요 급증 알림</div>
+    """
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -818,7 +812,91 @@ def render_alerts(top_df: pd.DataFrame, selected_time: str):
         </div>
         """
 
-    st.markdown(html, unsafe_allow_html=True)
+    html += "</div>"
+    return html
+
+
+def build_summary_html(max_label, max_zone_id, max_value, min_label, min_zone_id, min_value) -> str:
+    return f"""
+    <div class="info-card">
+        <div class="panel-title">선택 시각 요약</div>
+
+        <div style="margin-bottom:18px;">
+            <div style="color:#8B95A6;font-weight:800;font-size:14px;">최대 수요 생활권</div>
+            <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{max_label}</div>
+            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{max_zone_id}</div>
+            <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{max_value:.2f} kWh</div>
+        </div>
+
+        <div>
+            <div style="color:#8B95A6;font-weight:800;font-size:14px;">최소 수요 생활권</div>
+            <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{min_label}</div>
+            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{min_zone_id}</div>
+            <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{min_value:.2f} kWh</div>
+        </div>
+    </div>
+    """
+
+
+def build_detail_html(
+    selected_label: str,
+    selected_zone_id: str,
+    selected_dongs: str,
+    zone_pred_kwh: float,
+    zone_rank: int,
+    n_zones: int,
+    total_day_kwh: float,
+    peak_time: str,
+    peak_kwh: float,
+) -> str:
+    dongs_html = ""
+    if selected_dongs:
+        dongs_html = f"""
+        <div style="font-size:14px;color:#8B95A6;font-weight:800;margin-bottom:4px;">
+            포함 행정동
+        </div>
+        <div style="font-size:14px;color:#3A404C;line-height:1.6;margin-bottom:16px;">
+            {selected_dongs}
+        </div>
+        """
+
+    return f"""
+    <div class="info-card">
+        <div class="panel-title">선택 생활권 상세</div>
+
+        <div style="font-size:21px;font-weight:900;color:#252A36;margin-bottom:8px;">
+            {selected_label}
+        </div>
+        <div style="font-size:13px;color:#3D9657;font-weight:800;margin-bottom:12px;">
+            {selected_zone_id}
+        </div>
+
+        {dongs_html}
+
+        <div class="detail-grid">
+            <div class="mini-card">
+                <div class="mini-label">현재 예측</div>
+                <div class="mini-value">{zone_pred_kwh:.1f}</div>
+                <div class="mini-unit">kWh</div>
+            </div>
+            <div class="mini-card">
+                <div class="mini-label">수요 순위</div>
+                <div class="mini-value">{int(zone_rank)}</div>
+                <div class="mini-unit">/ {n_zones}</div>
+            </div>
+            <div class="mini-card">
+                <div class="mini-label">일일 총량</div>
+                <div class="mini-value">{total_day_kwh:.0f}</div>
+                <div class="mini-unit">kWh</div>
+            </div>
+            <div class="mini-card">
+                <div class="mini-label">피크 시간</div>
+                <div class="mini-value">{peak_time}</div>
+                <div class="mini-unit">{peak_kwh:.1f} kWh</div>
+            </div>
+        </div>
+    </div>
+    """
 
 
 # =========================================================
@@ -836,18 +914,9 @@ except Exception as e:
 
 
 # =========================================================
-# 기준 시간
-# =========================================================
-min_dt = pred["datetime"].min()
-max_dt = pred["datetime"].max()
-
-
-# =========================================================
-# 컨트롤 영역: Framer 헤더 아래 첫 화면
+# 컨트롤 영역
 # =========================================================
 available_dates = sorted(pred["date_str"].unique())
-
-st.markdown('<div class="control-panel">', unsafe_allow_html=True)
 
 control_col1, control_col2, control_col3, control_col4 = st.columns([1.1, 1.1, 0.75, 2.8])
 
@@ -896,8 +965,6 @@ selected_zone_id = zone_label_map.loc[
     "생활권역ID",
 ].iloc[0]
 
-st.markdown("</div>", unsafe_allow_html=True)
-
 
 # =========================================================
 # 선택 시각 데이터 생성
@@ -921,7 +988,6 @@ selected_dt = pred_filtered["datetime"].iloc[0]
 daily_slot = int(pred_filtered["daily_slot"].iloc[0])
 global_time_idx = int(pred_filtered["global_time_idx"].iloc[0])
 
-n_samples = pred["sample_idx"].nunique()
 n_zones = pred["zone_idx"].nunique()
 
 total_kwh = pred_filtered["predicted_kwh"].sum()
@@ -958,15 +1024,11 @@ with kpi4:
 left_col, right_col = st.columns([1.85, 1.0], gap="large")
 
 with left_col:
-    st.markdown('<div class="map-panel">', unsafe_allow_html=True)
-
     st.markdown(
         f"""
-        <div>
-            <div class="map-title">서울시 생활권별 충전 수요 히트맵</div>
-            <div class="section-caption">
-                {selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · 전체 Time Index {global_time_idx}
-            </div>
+        <div class="section-title">서울시 생활권별 충전 수요 히트맵</div>
+        <div class="section-caption">
+            {selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · 전체 Time Index {global_time_idx}
         </div>
         """,
         unsafe_allow_html=True,
@@ -986,13 +1048,7 @@ with left_col:
         unsafe_allow_html=True,
     )
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
 with right_col:
-    # 선택 시각 요약
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">선택 시각 요약</div>', unsafe_allow_html=True)
-
     max_zone_id = max_row["생활권역ID"]
     min_zone_id = min_row["생활권역ID"]
 
@@ -1011,27 +1067,16 @@ with right_col:
     )
 
     st.markdown(
-        f"""
-        <div style="margin-bottom:18px;">
-            <div style="color:#8B95A6;font-weight:800;font-size:14px;">최대 수요 생활권</div>
-            <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{max_label}</div>
-            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{max_zone_id}</div>
-            <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{max_row["predicted_kwh"]:.2f} kWh</div>
-        </div>
-        <div>
-            <div style="color:#8B95A6;font-weight:800;font-size:14px;">최소 수요 생활권</div>
-            <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{min_label}</div>
-            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{min_zone_id}</div>
-            <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{min_row["predicted_kwh"]:.2f} kWh</div>
-        </div>
-        """,
+        build_summary_html(
+            max_label=max_label,
+            max_zone_id=max_zone_id,
+            max_value=float(max_row["predicted_kwh"]),
+            min_label=min_label,
+            min_zone_id=min_zone_id,
+            min_value=float(min_row["predicted_kwh"]),
+        ),
         unsafe_allow_html=True,
     )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # 랭킹
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">수요 상위 권역 랭킹</div>', unsafe_allow_html=True)
 
     top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
     top10 = top10.merge(
@@ -1040,8 +1085,7 @@ with right_col:
         how="left",
     )
 
-    render_ranking(top10.head(5))
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(build_ranking_html(top10.head(5)), unsafe_allow_html=True)
 
 
 # =========================================================
@@ -1050,8 +1094,7 @@ with right_col:
 trend_col, alert_col = st.columns([1.8, 1.0], gap="large")
 
 with trend_col:
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">시간대별 수요 추이</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">시간대별 수요 추이</div>', unsafe_allow_html=True)
 
     total_fig = make_total_demand_chart(
         pred=pred,
@@ -1064,13 +1107,8 @@ with trend_col:
     else:
         st.info("선택 날짜의 시간대별 수요 데이터가 없습니다.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
 with alert_col:
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">수요 급증 알림</div>', unsafe_allow_html=True)
-    render_alerts(top10, selected_time)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(build_alerts_html(top10, selected_time), unsafe_allow_html=True)
 
 
 # =========================================================
@@ -1093,93 +1131,56 @@ else:
 
 zone_now = pred_filtered[pred_filtered["생활권역ID"] == selected_zone_id].copy()
 
-with detail_left:
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">선택 생활권 상세</div>', unsafe_allow_html=True)
+if not zone_now.empty:
+    zone_pred_kwh = float(zone_now["predicted_kwh"].iloc[0])
+    zone_rank = (
+        pred_filtered["predicted_kwh"]
+        .rank(method="min", ascending=False)
+        .loc[zone_now.index[0]]
+    )
 
+    day_zone = pred[
+        (pred["date_str"] == selected_date)
+        & (pred["생활권역ID"] == selected_zone_id)
+    ].copy()
+
+    if not day_zone.empty:
+        peak_row = day_zone.loc[day_zone["predicted_kwh"].idxmax()]
+        total_day_kwh = day_zone["predicted_kwh"].sum()
+        peak_time = peak_row["time_str"]
+        peak_kwh = float(peak_row["predicted_kwh"])
+    else:
+        total_day_kwh = 0
+        peak_time = "-"
+        peak_kwh = 0
+else:
+    zone_pred_kwh = 0
+    zone_rank = 0
+    total_day_kwh = 0
+    peak_time = "-"
+    peak_kwh = 0
+
+with detail_left:
     st.markdown(
-        f"""
-        <div style="font-size:21px;font-weight:900;color:#252A36;margin-bottom:8px;">
-            {selected_label}
-        </div>
-        <div style="font-size:13px;color:#3D9657;font-weight:800;margin-bottom:12px;">
-            {selected_zone_id}
-        </div>
-        """,
+        build_detail_html(
+            selected_label=selected_label,
+            selected_zone_id=selected_zone_id,
+            selected_dongs=selected_dongs,
+            zone_pred_kwh=zone_pred_kwh,
+            zone_rank=int(zone_rank),
+            n_zones=n_zones,
+            total_day_kwh=total_day_kwh,
+            peak_time=peak_time,
+            peak_kwh=peak_kwh,
+        ),
         unsafe_allow_html=True,
     )
 
-    if selected_dongs:
-        st.markdown(
-            f"""
-            <div style="font-size:14px;color:#8B95A6;font-weight:800;margin-bottom:4px;">
-                포함 행정동
-            </div>
-            <div style="font-size:14px;color:#3A404C;line-height:1.6;margin-bottom:16px;">
-                {selected_dongs}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    if not zone_now.empty:
-        zone_pred_kwh = float(zone_now["predicted_kwh"].iloc[0])
-        zone_rank = (
-            pred_filtered["predicted_kwh"]
-            .rank(method="min", ascending=False)
-            .loc[zone_now.index[0]]
-        )
-
-        day_zone = pred[
-            (pred["date_str"] == selected_date)
-            & (pred["생활권역ID"] == selected_zone_id)
-        ].copy()
-
-        if not day_zone.empty:
-            peak_row = day_zone.loc[day_zone["predicted_kwh"].idxmax()]
-            total_day_kwh = day_zone["predicted_kwh"].sum()
-            peak_time = peak_row["time_str"]
-            peak_kwh = float(peak_row["predicted_kwh"])
-        else:
-            total_day_kwh = 0
-            peak_time = "-"
-            peak_kwh = 0
-
-        st.markdown(
-            f"""
-            <div class="detail-grid">
-                <div class="mini-card">
-                    <div class="mini-label">현재 예측</div>
-                    <div class="mini-value">{zone_pred_kwh:.1f}</div>
-                    <div class="mini-unit">kWh</div>
-                </div>
-                <div class="mini-card">
-                    <div class="mini-label">수요 순위</div>
-                    <div class="mini-value">{int(zone_rank)}</div>
-                    <div class="mini-unit">/ {n_zones}</div>
-                </div>
-                <div class="mini-card">
-                    <div class="mini-label">일일 총량</div>
-                    <div class="mini-value">{total_day_kwh:.0f}</div>
-                    <div class="mini-unit">kWh</div>
-                </div>
-                <div class="mini-card">
-                    <div class="mini-label">피크 시간</div>
-                    <div class="mini-value">{peak_time}</div>
-                    <div class="mini-unit">{peak_kwh:.1f} kWh</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.info("선택 생활권의 현재 시각 예측값이 없습니다.")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
 with detail_right:
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<div class="panel-title">선택 생활권 30분 단위 예측 패턴</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title">선택 생활권 30분 단위 예측 패턴</div>',
+        unsafe_allow_html=True,
+    )
 
     fig = make_daily_pattern_chart(
         pred=pred,
@@ -1191,8 +1192,6 @@ with detail_right:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("선택 생활권의 일별 패턴 데이터가 없습니다.")
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # =========================================================
