@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Dict, Tuple
-from textwrap import dedent
 
 import numpy as np
 import pandas as pd
@@ -42,18 +41,7 @@ st.set_page_config(
 
 
 # =========================================================
-# HTML 렌더링 유틸
-# =========================================================
-def render_html(html: str) -> None:
-    """
-    Streamlit markdown에서 HTML이 코드블록처럼 보이는 문제 방지.
-    공통 들여쓰기와 앞뒤 공백을 제거한 뒤 렌더링한다.
-    """
-    st.markdown(dedent(html).strip(), unsafe_allow_html=True)
-
-
-# =========================================================
-# CSS
+# CSS: HTML 출력용이 아니라 Streamlit 기본 컴포넌트 스타일 보정용
 # =========================================================
 st.markdown(
     """
@@ -69,13 +57,13 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 0.7rem;
-        padding-bottom: 2.2rem;
-        max-width: 1700px;
+        padding-top: 0.75rem;
+        padding-bottom: 2.3rem;
+        max-width: 1760px;
     }
 
     header[data-testid="stHeader"] {
-        background: rgba(238, 243, 248, 0.75);
+        background: rgba(238, 243, 248, 0.78);
         backdrop-filter: blur(10px);
     }
 
@@ -93,147 +81,88 @@ st.markdown(
         visibility: hidden;
     }
 
-    .metric-card {
+    section[data-testid="stSidebar"] {
+        display: none;
+    }
+
+    div[data-testid="stMetric"] {
         background: #FFFFFF;
-        border-radius: 18px;
-        padding: 18px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        padding: 20px 22px;
+        border-radius: 22px;
         box-shadow: 0 8px 28px rgba(35, 55, 80, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.7);
-        min-height: 98px;
+        min-height: 126px;
     }
 
-    .metric-label {
-        color: #9099A8;
-        font-size: 14px;
-        font-weight: 700;
-        margin-bottom: 7px;
-    }
-
-    .metric-value {
-        font-size: 28px;
+    div[data-testid="stMetricLabel"] {
+        color: #8A93A3;
+        font-size: 15px;
         font-weight: 800;
+    }
+
+    div[data-testid="stMetricValue"] {
         color: #232633;
-        letter-spacing: -0.03em;
+        font-size: 34px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
     }
 
-    .metric-unit {
-        font-size: 17px;
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stCheckbox"] label,
+    div[data-testid="stToggle"] label {
+        font-weight: 800;
         color: #5A6270;
-        font-weight: 700;
-        margin-left: 4px;
+        font-size: 14px;
     }
 
-    .metric-red {
-        color: #D94B55;
+    div[data-baseweb="select"] > div {
+        background: #F8FAFD;
+        border-radius: 16px;
+        border-color: #E6ECF3;
+        min-height: 52px;
+        box-shadow: 0 5px 20px rgba(35, 55, 80, 0.04);
+    }
+
+    div[data-testid="stCheckbox"],
+    div[data-testid="stToggle"] {
+        background: #FFFFFF;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        border-radius: 16px;
+        padding: 11px 16px 8px 16px;
+        min-height: 52px;
+        box-shadow: 0 5px 20px rgba(35, 55, 80, 0.04);
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: #FFFFFF;
+        border-radius: 22px;
+        box-shadow: 0 8px 28px rgba(35, 55, 80, 0.06);
     }
 
     .section-title {
-        font-size: 22px;
-        font-weight: 800;
+        font-size: 25px;
+        font-weight: 900;
         color: #222633;
-        letter-spacing: -0.03em;
-        margin-top: 8px;
-        margin-bottom: 6px;
+        letter-spacing: -0.04em;
+        margin-top: 10px;
+        margin-bottom: 3px;
     }
 
     .section-caption {
         color: #7C8594;
         font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 10px;
-    }
-
-    .info-card {
-        background: #FFFFFF;
-        border-radius: 20px;
-        padding: 22px;
-        box-shadow: 0 8px 28px rgba(35, 55, 80, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.7);
-        margin-bottom: 18px;
-    }
-
-    .panel-title {
-        font-size: 22px;
-        font-weight: 800;
-        color: #222633;
-        letter-spacing: -0.03em;
-        margin-bottom: 16px;
-    }
-
-    .rank-row {
-        display: grid;
-        grid-template-columns: 34px 1.4fr 1fr 82px;
-        gap: 10px;
-        align-items: center;
-        padding: 8px 0;
-        border-bottom: 1px solid #EEF1F5;
-    }
-
-    .rank-num {
-        color: #A2A9B5;
-        font-weight: 800;
-        font-size: 15px;
-    }
-
-    .rank-name {
-        color: #323744;
-        font-weight: 700;
-        font-size: 15px;
-        line-height: 1.25;
-    }
-
-    .rank-bar-bg {
-        width: 100%;
-        height: 8px;
-        background: #EDF0F4;
-        border-radius: 999px;
-        overflow: hidden;
-    }
-
-    .rank-bar {
-        height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, #74A7FF, #2E5BEA);
-    }
-
-    .rank-kwh {
-        color: #424855;
-        font-weight: 800;
-        font-size: 14px;
-        text-align: right;
-    }
-
-    .alert-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid #EEF1F5;
-    }
-
-    .alert-text {
-        color: #3A404C;
-        font-size: 15px;
         font-weight: 600;
-        line-height: 1.4;
-    }
-
-    .alert-time {
-        color: #9AA3B1;
-        font-size: 14px;
-        font-weight: 700;
-        white-space: nowrap;
+        margin-bottom: 11px;
     }
 
     .legend-wrap {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-top: 8px;
+        margin-top: 10px;
         margin-bottom: 18px;
         color: #788395;
-        font-weight: 700;
+        font-weight: 800;
         font-size: 13px;
     }
 
@@ -244,58 +173,42 @@ st.markdown(
         background: linear-gradient(90deg, #D9E9FF, #76A8FF, #2E5BEA, #20145C);
     }
 
-    .detail-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-top: 10px;
+    .small-muted {
+        color: #8993A3;
+        font-size: 13px;
+        font-weight: 700;
     }
 
-    .mini-card {
-        background: #F5F8FC;
-        border-radius: 14px;
-        padding: 14px;
-    }
-
-    .mini-label {
-        font-size: 12px;
-        color: #8B95A6;
-        font-weight: 800;
-    }
-
-    .mini-value {
-        font-size: 22px;
+    .strong-title {
+        font-size: 18px;
         font-weight: 900;
         color: #252A36;
-        margin-top: 3px;
+        letter-spacing: -0.02em;
     }
 
-    .mini-unit {
-        font-size: 12px;
-        color: #8B95A6;
-        font-weight: 700;
-    }
-
-    div[data-testid="stSelectbox"] label,
-    div[data-testid="stCheckbox"] label {
-        font-weight: 700;
-        color: #5A6270;
+    .green-id {
+        color: #2E8B55;
         font-size: 13px;
-    }
-
-    div[data-baseweb="select"] > div {
-        background: #F7F9FC;
-        border-radius: 12px;
-        border-color: #E8EDF4;
+        font-weight: 900;
     }
 
     .stPlotlyChart {
-        border-radius: 16px;
+        border-radius: 18px;
         overflow: hidden;
     }
 
     iframe {
         border-radius: 18px;
+    }
+
+    .element-container:has(.stPlotlyChart) {
+        background: #FFFFFF;
+        border-radius: 22px;
+    }
+
+    div[data-testid="stDataFrame"] {
+        border-radius: 18px;
+        overflow: hidden;
     }
     </style>
     """,
@@ -740,77 +653,31 @@ def make_daily_pattern_chart(pred: pd.DataFrame, selected_date: str, selected_zo
     return fig
 
 
-def render_kpi_card(label: str, value: str, unit: str = "", red: bool = False):
-    value_class = "metric-value metric-red" if red else "metric-value"
-
-    render_html(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">{label}</div>
-            <div>
-                <span class="{value_class}">{value}</span>
-                <span class="metric-unit">{unit}</span>
-            </div>
-        </div>
-        """
-    )
-
-
-def build_ranking_html(top_df: pd.DataFrame) -> str:
+def draw_ranking(top_df: pd.DataFrame):
     if top_df.empty:
-        return dedent(
-            """
-            <div class="info-card">
-                <div class="panel-title">수요 상위 권역 랭킹</div>
-                <div>표시할 랭킹 데이터가 없습니다.</div>
-            </div>
-            """
-        ).strip()
+        st.info("표시할 랭킹 데이터가 없습니다.")
+        return
 
-    max_v = top_df["predicted_kwh"].max()
-    rows = ""
+    max_v = float(top_df["predicted_kwh"].max())
 
     for i, row in enumerate(top_df.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
         value = float(getattr(row, "predicted_kwh"))
-        pct = 0 if max_v == 0 else value / max_v * 100
+        pct = 0.0 if max_v == 0 else value / max_v
 
-        rows += dedent(
-            f"""
-            <div class="rank-row">
-                <div class="rank-num">{i}</div>
-                <div class="rank-name">{label}</div>
-                <div class="rank-bar-bg">
-                    <div class="rank-bar" style="width:{pct:.1f}%"></div>
-                </div>
-                <div class="rank-kwh">{value:,.1f} kWh</div>
-            </div>
-            """
-        ).strip()
-
-    return dedent(
-        f"""
-        <div class="info-card">
-            <div class="panel-title">수요 상위 권역 랭킹</div>
-            {rows}
-        </div>
-        """
-    ).strip()
+        c1, c2, c3, c4 = st.columns([0.12, 0.42, 0.30, 0.16])
+        c1.markdown(f"**{i}**")
+        c2.markdown(f"**{label}**")
+        c3.progress(float(pct))
+        c4.markdown(f"**{value:,.1f} kWh**")
 
 
-def build_alerts_html(top_df: pd.DataFrame, selected_time: str) -> str:
+def draw_alerts(top_df: pd.DataFrame, selected_time: str):
     if top_df.empty:
-        return dedent(
-            """
-            <div class="info-card">
-                <div class="panel-title">수요 급증 알림</div>
-                <div>수요 알림을 생성할 수 없습니다.</div>
-            </div>
-            """
-        ).strip()
+        st.info("수요 알림을 생성할 수 없습니다.")
+        return
 
     alert_rows = top_df.head(4).copy()
-    rows = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -825,53 +692,16 @@ def build_alerts_html(top_df: pd.DataFrame, selected_time: str) -> str:
         else:
             message = f"{label} — 충전량 모니터링 권장"
 
-        rows += dedent(
-            f"""
-            <div class="alert-row">
-                <div class="alert-text">
-                    {message}<br>
-                    <span style="color:#8B95A6;font-weight:600;">예측 {value:,.1f} kWh</span>
-                </div>
-                <div class="alert-time">{selected_time}</div>
-            </div>
-            """
-        ).strip()
-
-    return dedent(
-        f"""
-        <div class="info-card">
-            <div class="panel-title">수요 급증 알림</div>
-            {rows}
-        </div>
-        """
-    ).strip()
+        col_msg, col_time = st.columns([0.78, 0.22])
+        with col_msg:
+            st.markdown(f"**{message}**")
+            st.caption(f"예측 {value:,.1f} kWh")
+        with col_time:
+            st.markdown(f"**{selected_time}**")
+        st.divider()
 
 
-def build_summary_html(max_label, max_zone_id, max_value, min_label, min_zone_id, min_value) -> str:
-    return dedent(
-        f"""
-        <div class="info-card">
-            <div class="panel-title">선택 시각 요약</div>
-
-            <div style="margin-bottom:18px;">
-                <div style="color:#8B95A6;font-weight:800;font-size:14px;">최대 수요 생활권</div>
-                <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{max_label}</div>
-                <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{max_zone_id}</div>
-                <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{max_value:.2f} kWh</div>
-            </div>
-
-            <div>
-                <div style="color:#8B95A6;font-weight:800;font-size:14px;">최소 수요 생활권</div>
-                <div style="font-size:18px;font-weight:800;color:#252A36;margin-top:5px;">{min_label}</div>
-                <div style="font-size:13px;color:#3D9657;font-weight:800;margin-top:4px;">{min_zone_id}</div>
-                <div style="font-size:18px;color:#252A36;font-weight:900;margin-top:5px;">{min_value:.2f} kWh</div>
-            </div>
-        </div>
-        """
-    ).strip()
-
-
-def build_detail_html(
+def draw_area_detail(
     selected_label: str,
     selected_zone_id: str,
     selected_dongs: str,
@@ -881,60 +711,21 @@ def build_detail_html(
     total_day_kwh: float,
     peak_time: str,
     peak_kwh: float,
-) -> str:
-    dongs_html = ""
+):
+    st.markdown(f"### {selected_label}")
+    st.caption(selected_zone_id)
 
     if selected_dongs:
-        dongs_html = dedent(
-            f"""
-            <div style="font-size:14px;color:#8B95A6;font-weight:800;margin-bottom:4px;">
-                포함 행정동
-            </div>
-            <div style="font-size:14px;color:#3A404C;line-height:1.6;margin-bottom:16px;">
-                {selected_dongs}
-            </div>
-            """
-        ).strip()
+        st.markdown("**포함 행정동**")
+        st.write(selected_dongs)
 
-    return dedent(
-        f"""
-        <div class="info-card">
-            <div class="panel-title">선택 생활권 상세</div>
+    m1, m2 = st.columns(2)
+    m3, m4 = st.columns(2)
 
-            <div style="font-size:21px;font-weight:900;color:#252A36;margin-bottom:8px;">
-                {selected_label}
-            </div>
-            <div style="font-size:13px;color:#3D9657;font-weight:800;margin-bottom:12px;">
-                {selected_zone_id}
-            </div>
-
-            {dongs_html}
-
-            <div class="detail-grid">
-                <div class="mini-card">
-                    <div class="mini-label">현재 예측</div>
-                    <div class="mini-value">{zone_pred_kwh:.1f}</div>
-                    <div class="mini-unit">kWh</div>
-                </div>
-                <div class="mini-card">
-                    <div class="mini-label">수요 순위</div>
-                    <div class="mini-value">{int(zone_rank)}</div>
-                    <div class="mini-unit">/ {n_zones}</div>
-                </div>
-                <div class="mini-card">
-                    <div class="mini-label">일일 총량</div>
-                    <div class="mini-value">{total_day_kwh:.0f}</div>
-                    <div class="mini-unit">kWh</div>
-                </div>
-                <div class="mini-card">
-                    <div class="mini-label">피크 시간</div>
-                    <div class="mini-value">{peak_time}</div>
-                    <div class="mini-unit">{peak_kwh:.1f} kWh</div>
-                </div>
-            </div>
-        </div>
-        """
-    ).strip()
+    m1.metric("현재 예측", f"{zone_pred_kwh:.1f} kWh")
+    m2.metric("수요 순위", f"{int(zone_rank)} / {n_zones}")
+    m3.metric("일일 총량", f"{total_day_kwh:.0f} kWh")
+    m4.metric("피크 시간", f"{peak_time}", f"{peak_kwh:.1f} kWh")
 
 
 # =========================================================
@@ -956,7 +747,7 @@ except Exception as e:
 # =========================================================
 available_dates = sorted(pred["date_str"].unique())
 
-control_col1, control_col2, control_col3, control_col4 = st.columns([1.1, 1.1, 0.75, 2.8])
+control_col1, control_col2, control_col3, control_col4 = st.columns([1.15, 1.15, 1.0, 3.0])
 
 with control_col1:
     selected_date = st.selectbox(
@@ -979,7 +770,10 @@ with control_col2:
     )
 
 with control_col3:
-    use_3d_column = st.checkbox("3D 막대", value=False)
+    use_3d_column = st.toggle(
+        "3D 막대 표시",
+        value=False,
+    )
 
 zone_label_map = area_info.copy()
 zone_label_map = zone_label_map[
@@ -1043,17 +837,10 @@ min_row = pred_filtered.loc[pred_filtered["predicted_kwh"].idxmin()]
 # =========================================================
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
-with kpi1:
-    render_kpi_card("예측 대상 권역", f"{n_zones}", "개")
-
-with kpi2:
-    render_kpi_card("선택 시각 총 예측 충전량", f"{total_kwh:,.0f}", "kWh")
-
-with kpi3:
-    render_kpi_card("고수요 예상 권역", f"{high_count}", "개", red=True)
-
-with kpi4:
-    render_kpi_card("생활권 평균 예측 수요", f"{mean_kwh:.1f}", "kWh")
+kpi1.metric("예측 대상 권역", f"{n_zones} 개")
+kpi2.metric("선택 시각 총 예측 충전량", f"{total_kwh:,.0f} kWh")
+kpi3.metric("고수요 예상 권역", f"{high_count} 개")
+kpi4.metric("생활권 평균 예측 수요", f"{mean_kwh:.1f} kWh")
 
 
 # =========================================================
@@ -1062,26 +849,28 @@ with kpi4:
 left_col, right_col = st.columns([1.85, 1.0], gap="large")
 
 with left_col:
-    render_html(
+    st.markdown(
         f"""
         <div class="section-title">서울시 생활권별 충전 수요 히트맵</div>
         <div class="section-caption">
             {selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · 전체 Time Index {global_time_idx}
         </div>
-        """
+        """,
+        unsafe_allow_html=True,
     )
 
     deck = make_deck(map_gdf, use_3d_column=use_3d_column)
     st.pydeck_chart(deck, use_container_width=True, height=650)
 
-    render_html(
+    st.markdown(
         """
         <div class="legend-wrap">
             <span>낮음</span>
             <div class="legend-bar"></div>
             <span>높음</span>
         </div>
-        """
+        """,
+        unsafe_allow_html=True,
     )
 
 with right_col:
@@ -1102,16 +891,20 @@ with right_col:
         else min_zone_id
     )
 
-    render_html(
-        build_summary_html(
-            max_label=max_label,
-            max_zone_id=max_zone_id,
-            max_value=float(max_row["predicted_kwh"]),
-            min_label=min_label,
-            min_zone_id=min_zone_id,
-            min_value=float(min_row["predicted_kwh"]),
-        )
-    )
+    with st.container(border=True):
+        st.subheader("선택 시각 요약")
+
+        st.markdown("**최대 수요 생활권**")
+        st.write(max_label)
+        st.caption(max_zone_id)
+        st.metric("최대 예측 수요", f"{float(max_row['predicted_kwh']):.2f} kWh")
+
+        st.divider()
+
+        st.markdown("**최소 수요 생활권**")
+        st.write(min_label)
+        st.caption(min_zone_id)
+        st.metric("최소 예측 수요", f"{float(min_row['predicted_kwh']):.2f} kWh")
 
     top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
     top10 = top10.merge(
@@ -1120,7 +913,9 @@ with right_col:
         how="left",
     )
 
-    render_html(build_ranking_html(top10.head(5)))
+    with st.container(border=True):
+        st.subheader("수요 상위 권역 랭킹")
+        draw_ranking(top10.head(5))
 
 
 # =========================================================
@@ -1129,7 +924,7 @@ with right_col:
 trend_col, alert_col = st.columns([1.8, 1.0], gap="large")
 
 with trend_col:
-    render_html('<div class="section-title">시간대별 수요 추이</div>')
+    st.markdown('<div class="section-title">시간대별 수요 추이</div>', unsafe_allow_html=True)
 
     total_fig = make_total_demand_chart(
         pred=pred,
@@ -1143,7 +938,9 @@ with trend_col:
         st.info("선택 날짜의 시간대별 수요 데이터가 없습니다.")
 
 with alert_col:
-    render_html(build_alerts_html(top10, selected_time))
+    with st.container(border=True):
+        st.subheader("수요 급증 알림")
+        draw_alerts(top10, selected_time)
 
 
 # =========================================================
@@ -1196,8 +993,9 @@ else:
     peak_kwh = 0
 
 with detail_left:
-    render_html(
-        build_detail_html(
+    with st.container(border=True):
+        st.subheader("선택 생활권 상세")
+        draw_area_detail(
             selected_label=selected_label,
             selected_zone_id=selected_zone_id,
             selected_dongs=selected_dongs,
@@ -1208,10 +1006,12 @@ with detail_left:
             peak_time=peak_time,
             peak_kwh=peak_kwh,
         )
-    )
 
 with detail_right:
-    render_html('<div class="section-title">선택 생활권 30분 단위 예측 패턴</div>')
+    st.markdown(
+        '<div class="section-title">선택 생활권 30분 단위 예측 패턴</div>',
+        unsafe_allow_html=True,
+    )
 
     fig = make_daily_pattern_chart(
         pred=pred,
