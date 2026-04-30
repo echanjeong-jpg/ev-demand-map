@@ -29,6 +29,10 @@ TARGET_EPSG = 4326
 START_DATETIME = pd.Timestamp("2025-01-01 00:00:00")
 TIME_UNIT_MINUTES = 30
 
+MAP_HEIGHT = 590
+TOTAL_CHART_HEIGHT = 365
+DETAIL_CHART_HEIGHT = 390
+
 
 # =========================================================
 # Streamlit 기본 설정
@@ -126,11 +130,11 @@ st.markdown(
         font-weight: 800;
     }
 
-    div[data-testid="stSelectbox"] label,
-    div[data-testid="stToggle"] label {
+    div[data-testid="stSelectbox"] label {
         font-weight: 800;
         color: #5A6270;
         font-size: 13px;
+        margin-bottom: 0.25rem;
     }
 
     div[data-baseweb="select"] > div {
@@ -152,8 +156,17 @@ st.markdown(
         align-items: center;
     }
 
-    .toggle-align-spacer {
-        height: 25px;
+    div[data-testid="stToggle"] label {
+        font-weight: 800;
+        color: #5A6270;
+        font-size: 13px;
+    }
+
+    .toggle-label {
+        color: #5A6270;
+        font-size: 13px;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
     }
 
     .section-title {
@@ -192,7 +205,7 @@ st.markdown(
         padding: 16px 16px;
         border: 1px solid #E8EEF5;
         margin-top: 8px;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
     }
 
     .summary-grid {
@@ -206,7 +219,7 @@ st.markdown(
         border-radius: 15px;
         padding: 14px 14px;
         border: 1px solid #E8EEF5;
-        min-height: 150px;
+        min-height: 146px;
     }
 
     .mini-label {
@@ -261,7 +274,7 @@ st.markdown(
         grid-template-columns: 22px minmax(120px, 1fr) 148px 56px;
         gap: 9px;
         align-items: center;
-        margin: 7px 0;
+        margin: 9px 0;
     }
 
     .rank-num {
@@ -305,8 +318,9 @@ st.markdown(
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
         border-radius: 16px;
-        padding: 12px 14px;
-        margin-bottom: 9px;
+        padding: 14px 15px;
+        margin-bottom: 11px;
+        min-height: 82px;
     }
 
     .alert-top {
@@ -361,6 +375,10 @@ st.markdown(
         font-size: 13px;
         font-weight: 900;
         margin-top: 6px;
+    }
+
+    .detail-spacer {
+        height: 4px;
     }
 
     .stPlotlyChart {
@@ -860,7 +878,7 @@ def make_total_demand_chart(pred: pd.DataFrame, selected_date: str, selected_tim
     )
 
     fig.update_layout(
-        height=350,
+        height=TOTAL_CHART_HEIGHT,
         margin=dict(l=4, r=4, t=10, b=8),
         paper_bgcolor="white",
         plot_bgcolor="white",
@@ -907,7 +925,7 @@ def make_daily_pattern_chart(pred: pd.DataFrame, selected_date: str, selected_zo
     )
 
     fig.update_layout(
-        height=310,
+        height=DETAIL_CHART_HEIGHT,
         margin=dict(l=4, r=4, t=10, b=8),
         paper_bgcolor="white",
         plot_bgcolor="white",
@@ -1019,9 +1037,13 @@ def draw_area_detail(
     st.markdown(f"#### {selected_label}")
     st.caption(selected_zone_id)
 
+    st.markdown("**포함 행정동**")
     if selected_dongs:
-        st.markdown("**포함 행정동**")
         st.caption(selected_dongs)
+    else:
+        st.caption("행정동 정보 없음")
+
+    st.markdown('<div class="detail-spacer"></div>', unsafe_allow_html=True)
 
     d1, d2 = st.columns(2)
     d3, d4 = st.columns(2)
@@ -1083,7 +1105,7 @@ with st.container(border=True):
         )
 
     with c3:
-        st.markdown('<div class="toggle-align-spacer"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="toggle-label">3D 막대 표시</div>', unsafe_allow_html=True)
         use_3d_column = st.toggle(
             "3D 막대 표시",
             value=False,
@@ -1174,7 +1196,7 @@ with main_left:
         )
 
         deck = make_deck(map_gdf, use_3d_column=use_3d_column)
-        st.pydeck_chart(deck, use_container_width=True, height=610)
+        st.pydeck_chart(deck, use_container_width=True, height=MAP_HEIGHT)
         render_legend()
 
 with main_right:
