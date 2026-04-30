@@ -86,7 +86,11 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlock"] {
-        gap: 0.8rem;
+        gap: 0.72rem;
+    }
+
+    div[data-testid="column"] {
+        gap: 0.4rem;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -197,10 +201,10 @@ st.markdown(
     .summary-mini-card {
         background: #F8FAFD;
         border-radius: 16px;
-        padding: 14px 16px;
+        padding: 12px 14px;
         border: 1px solid #E8EEF5;
         margin-top: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
 
     .legend-wrap {
@@ -225,6 +229,7 @@ st.markdown(
         font-weight: 800;
         color: #303644;
         font-size: 13px;
+        line-height: 1.25;
     }
 
     .rank-value {
@@ -232,6 +237,7 @@ st.markdown(
         color: #303644;
         font-size: 13px;
         text-align: right;
+        line-height: 1.25;
     }
 
     .muted {
@@ -262,12 +268,16 @@ st.markdown(
     }
 
     hr {
-        margin-top: 0.65rem;
-        margin-bottom: 0.65rem;
+        margin-top: 0.55rem;
+        margin-bottom: 0.55rem;
     }
 
     .mapboxgl-control-container {
         opacity: 0.92;
+    }
+
+    div[data-testid="stProgress"] > div > div > div {
+        background-color: #2680EB;
     }
     </style>
     """,
@@ -804,11 +814,11 @@ def draw_ranking(top_df: pd.DataFrame):
         value = float(getattr(row, "predicted_kwh"))
         pct = 0.0 if max_v == 0 else value / max_v
 
-        r1, r2, r3, r4 = st.columns([0.1, 0.42, 0.30, 0.18])
+        r1, r2, r3, r4 = st.columns([0.09, 0.43, 0.30, 0.18])
         r1.markdown(f"**{i}**")
         r2.markdown(f"<span class='rank-label'>{label}</span>", unsafe_allow_html=True)
         r3.progress(float(pct))
-        r4.markdown(f"<div class='rank-value'>{value:,.1f} kWh</div>", unsafe_allow_html=True)
+        r4.markdown(f"<div class='rank-value'>{value:,.1f}</div>", unsafe_allow_html=True)
 
 
 def draw_alerts(top_df: pd.DataFrame, selected_time: str):
@@ -999,7 +1009,7 @@ with st.container(border=True):
 # =========================================================
 # 지도 + 요약/랭킹 영역
 # =========================================================
-main_left, main_right = st.columns([1.72, 0.98], gap="large")
+main_left, main_right = st.columns([1.72, 0.98], gap="small")
 
 with main_left:
     with st.container(border=True):
@@ -1009,7 +1019,9 @@ with main_left:
         )
 
         deck = make_deck(map_gdf, use_3d_column=use_3d_column)
-        st.pydeck_chart(deck, use_container_width=True, height=650)
+
+        # 오른쪽 요약+랭킹과 하단을 맞추기 위해 지도 높이를 조정
+        st.pydeck_chart(deck, use_container_width=True, height=610)
         render_legend()
 
 with main_right:
@@ -1058,13 +1070,15 @@ with main_right:
 
     with st.container(border=True):
         card_title("수요 상위 권역 랭킹")
-        draw_ranking(top10.head(5))
+
+        # 지도 하단과 높이를 맞추기 위해 7개 표시
+        draw_ranking(top10.head(7))
 
 
 # =========================================================
 # 시간대별 분석 영역
 # =========================================================
-trend_col, alert_col = st.columns([1.72, 0.98], gap="large")
+trend_col, alert_col = st.columns([1.72, 0.98], gap="small")
 
 with trend_col:
     with st.container(border=True):
@@ -1090,7 +1104,7 @@ with alert_col:
 # =========================================================
 # 상세 생활권 분석 영역
 # =========================================================
-detail_col, pattern_col = st.columns([0.98, 1.72], gap="large")
+detail_col, pattern_col = st.columns([0.98, 1.72], gap="small")
 
 selected_area = area_info[area_info["생활권역ID"] == selected_zone_id].copy()
 
