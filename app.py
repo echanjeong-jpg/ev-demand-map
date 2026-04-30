@@ -86,7 +86,7 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlock"] {
-        gap: 0.85rem;
+        gap: 0.8rem;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -102,7 +102,7 @@ st.markdown(
         padding: 18px 20px;
         border-radius: 20px;
         box-shadow: 0 8px 24px rgba(35, 55, 80, 0.055);
-        min-height: 108px;
+        min-height: 106px;
     }
 
     div[data-testid="stMetricLabel"] {
@@ -122,8 +122,7 @@ st.markdown(
         font-weight: 800;
     }
 
-    div[data-testid="stSelectbox"] label,
-    div[data-testid="stCheckbox"] label {
+    div[data-testid="stSelectbox"] label {
         font-weight: 800;
         color: #5A6270;
         font-size: 13px;
@@ -133,15 +132,6 @@ st.markdown(
         background: #F8FAFD;
         border-radius: 14px;
         border-color: #E6ECF3;
-        min-height: 46px;
-        box-shadow: 0 4px 16px rgba(35, 55, 80, 0.035);
-    }
-
-    div[data-testid="stCheckbox"] {
-        background: #F8FAFD;
-        border: 1px solid #E6ECF3;
-        border-radius: 14px;
-        padding: 9px 14px 7px 14px;
         min-height: 46px;
         box-shadow: 0 4px 16px rgba(35, 55, 80, 0.035);
     }
@@ -166,7 +156,7 @@ st.markdown(
         font-weight: 900;
         color: #222633;
         letter-spacing: -0.035em;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.45rem;
     }
 
     .card-subtitle {
@@ -176,11 +166,48 @@ st.markdown(
         margin-bottom: 0.7rem;
     }
 
+    .mini-label {
+        color: #8A93A3;
+        font-size: 12px;
+        font-weight: 800;
+        margin-bottom: 3px;
+    }
+
+    .mini-title {
+        color: #222633;
+        font-size: 15px;
+        font-weight: 900;
+        margin-bottom: 3px;
+    }
+
+    .mini-id {
+        color: #2E8B55;
+        font-size: 12px;
+        font-weight: 900;
+        margin-bottom: 6px;
+    }
+
+    .mini-value {
+        color: #222633;
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+    }
+
+    .summary-mini-card {
+        background: #F8FAFD;
+        border-radius: 16px;
+        padding: 14px 16px;
+        border: 1px solid #E8EEF5;
+        margin-top: 8px;
+        margin-bottom: 10px;
+    }
+
     .legend-wrap {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-top: 7px;
+        margin-top: 8px;
         margin-bottom: 0px;
         color: #788395;
         font-weight: 800;
@@ -235,8 +262,8 @@ st.markdown(
     }
 
     hr {
-        margin-top: 0.7rem;
-        margin-bottom: 0.7rem;
+        margin-top: 0.65rem;
+        margin-bottom: 0.65rem;
     }
 
     .mapboxgl-control-container {
@@ -294,6 +321,27 @@ def render_legend() -> None:
             <span>낮음</span>
             <div class="legend-bar"></div>
             <span>높음</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def compact_summary_card(
+    label: str,
+    area_name: str,
+    area_id: str,
+    value_label: str,
+    value: float,
+) -> None:
+    st.markdown(
+        f"""
+        <div class="summary-mini-card">
+            <div class="mini-label">{label}</div>
+            <div class="mini-title">{area_name}</div>
+            <div class="mini-id">{area_id}</div>
+            <div class="mini-label">{value_label}</div>
+            <div class="mini-value">{value:.2f} kWh</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -835,20 +883,18 @@ except Exception as e:
 # =========================================================
 # 상단 여백: Framer iframe 상단 잘림 방지
 # =========================================================
-st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
 
 # =========================================================
 # 컨트롤 영역
 # =========================================================
-control_box = st.container(border=True)
-
-with control_box:
+with st.container(border=True):
     section_title("예측 조건 설정", "날짜, 시간, 지도 표시 방식, 상세 생활권을 선택합니다.")
 
     available_dates = sorted(pred["date_str"].unique())
 
-    c1, c2, c3, c4 = st.columns([1.1, 1.1, 1.1, 3.1])
+    c1, c2, c3, c4 = st.columns([1.1, 1.1, 1.15, 3.1])
 
     with c1:
         selected_date = st.selectbox(
@@ -871,10 +917,13 @@ with control_box:
         )
 
     with c3:
-        use_3d_column = st.checkbox(
-            "3D 막대 표시",
-            value=False,
+        view_mode = st.selectbox(
+            "지도 표시 방식",
+            ["2D 히트맵", "3D 막대"],
+            index=0,
         )
+
+    use_3d_column = view_mode == "3D 막대"
 
     zone_label_map = area_info.copy()
     zone_label_map = zone_label_map[
@@ -936,9 +985,7 @@ min_row = pred_filtered.loc[pred_filtered["predicted_kwh"].idxmin()]
 # =========================================================
 # KPI 영역
 # =========================================================
-kpi_area = st.container(border=True)
-
-with kpi_area:
+with st.container(border=True):
     section_title("선택 시각 핵심 지표", f"{selected_dt:%Y-%m-%d %H:%M} 기준 생활권별 예측 결과입니다.")
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
@@ -952,7 +999,7 @@ with kpi_area:
 # =========================================================
 # 지도 + 요약/랭킹 영역
 # =========================================================
-main_left, main_right = st.columns([1.75, 0.95], gap="large")
+main_left, main_right = st.columns([1.72, 0.98], gap="large")
 
 with main_left:
     with st.container(border=True):
@@ -962,7 +1009,7 @@ with main_left:
         )
 
         deck = make_deck(map_gdf, use_3d_column=use_3d_column)
-        st.pydeck_chart(deck, use_container_width=True, height=560)
+        st.pydeck_chart(deck, use_container_width=True, height=650)
         render_legend()
 
 with main_right:
@@ -986,17 +1033,21 @@ with main_right:
     with st.container(border=True):
         card_title("선택 시각 요약")
 
-        st.markdown("**최대 수요 생활권**")
-        st.write(max_label)
-        st.caption(max_zone_id)
-        st.metric("최대 예측 수요", f"{float(max_row['predicted_kwh']):.2f} kWh")
+        compact_summary_card(
+            label="최대 수요 생활권",
+            area_name=max_label,
+            area_id=max_zone_id,
+            value_label="최대 예측 수요",
+            value=float(max_row["predicted_kwh"]),
+        )
 
-        st.divider()
-
-        st.markdown("**최소 수요 생활권**")
-        st.write(min_label)
-        st.caption(min_zone_id)
-        st.metric("최소 예측 수요", f"{float(min_row['predicted_kwh']):.2f} kWh")
+        compact_summary_card(
+            label="최소 수요 생활권",
+            area_name=min_label,
+            area_id=min_zone_id,
+            value_label="최소 예측 수요",
+            value=float(min_row["predicted_kwh"]),
+        )
 
     top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
     top10 = top10.merge(
@@ -1013,7 +1064,7 @@ with main_right:
 # =========================================================
 # 시간대별 분석 영역
 # =========================================================
-trend_col, alert_col = st.columns([1.75, 0.95], gap="large")
+trend_col, alert_col = st.columns([1.72, 0.98], gap="large")
 
 with trend_col:
     with st.container(border=True):
@@ -1039,7 +1090,7 @@ with alert_col:
 # =========================================================
 # 상세 생활권 분석 영역
 # =========================================================
-detail_col, pattern_col = st.columns([0.95, 1.75], gap="large")
+detail_col, pattern_col = st.columns([0.98, 1.72], gap="large")
 
 selected_area = area_info[area_info["생활권역ID"] == selected_zone_id].copy()
 
