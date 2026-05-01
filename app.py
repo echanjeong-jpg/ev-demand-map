@@ -967,16 +967,20 @@ def make_polygon_layer(map_gdf: gpd.GeoDataFrame) -> pdk.Layer:
     vmax = float(map_gdf["predicted_kwh"].quantile(0.95))
 
     map_gdf = map_gdf.copy()
-    map_gdf["fill_color"] = map_gdf["predicted_kwh"].apply(
-        lambda x: kwh_to_color(x, vmin, vmax)
+
+    map_gdf["fill_color"] = map_gdf.apply(
+        lambda row: [255, 130, 80, 220]
+        if bool(row.get("is_focus", False))
+        else kwh_to_color(row["predicted_kwh"], vmin, vmax),
+        axis=1,
     )
 
-    map_gdf.loc[map_gdf["is_focus"] == True, "fill_color"] = [[255, 130, 80, 220]]
     map_gdf["line_color"] = map_gdf["is_focus"].apply(
-        lambda x: [255, 60, 60, 255] if x else [255, 255, 255, 185]
+        lambda x: [255, 60, 60, 255] if bool(x) else [255, 255, 255, 185]
     )
+
     map_gdf["line_width"] = map_gdf["is_focus"].apply(
-        lambda x: 90 if x else 20
+        lambda x: 90 if bool(x) else 20
     )
 
     return pdk.Layer(
@@ -1000,10 +1004,19 @@ def make_column_layer(map_gdf: gpd.GeoDataFrame) -> pdk.Layer:
     vmin = float(df["predicted_kwh"].quantile(0.05))
     vmax = float(df["predicted_kwh"].quantile(0.95))
 
-    df["fill_color"] = df["predicted_kwh"].apply(lambda x: kwh_to_color(x, vmin, vmax))
-    df.loc[df["is_focus"] == True, "fill_color"] = [[255, 90, 70, 240]]
-    df["elevation"] = df["predicted_kwh"].fillna(0) * 70
-    df.loc[df["is_focus"] == True, "elevation"] = df.loc[df["is_focus"] == True, "predicted_kwh"].fillna(0) * 110
+    df["fill_color"] = df.apply(
+        lambda row: [255, 90, 70, 240]
+        if bool(row.get("is_focus", False))
+        else kwh_to_color(row["predicted_kwh"], vmin, vmax),
+        axis=1,
+    )
+
+    df["elevation"] = df.apply(
+        lambda row: float(row["predicted_kwh"]) * 110
+        if bool(row.get("is_focus", False))
+        else float(row["predicted_kwh"]) * 70,
+        axis=1,
+    )
 
     return pdk.Layer(
         "ColumnLayer",
