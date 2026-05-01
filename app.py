@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
@@ -36,7 +37,7 @@ MAP_HEIGHT = 720
 
 
 # =========================================================
-# Streamlit 기본 설정
+# Streamlit 설정
 # =========================================================
 st.set_page_config(
     page_title="E-Vlog EV Demand Assistant",
@@ -260,20 +261,41 @@ st.markdown(
         background: #64748B;
     }
 
-    .detail-card {
+    div[data-testid="stMetric"] {
+        background: #FFFFFF;
+        border: 1px solid #E8EEF5;
+        border-radius: 16px;
+        padding: 12px 14px;
+        min-height: 95px;
+        box-shadow: 0 6px 18px rgba(35, 55, 80, 0.045);
+    }
+
+    div[data-testid="stMetricLabel"] {
+        color: #8A93A3;
+        font-size: 12px;
+        font-weight: 850;
+    }
+
+    div[data-testid="stMetricValue"] {
+        color: #202532;
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+    }
+
+    .detail-box {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
-        border-radius: 20px;
-        padding: 17px 18px;
+        border-radius: 18px;
+        padding: 16px 16px;
         margin-bottom: 12px;
     }
 
     .detail-title {
         color: #202532;
-        font-size: 21px;
+        font-size: 22px;
         font-weight: 900;
-        letter-spacing: -0.04em;
-        line-height: 1.25;
+        letter-spacing: -0.045em;
         margin-bottom: 4px;
     }
 
@@ -281,14 +303,15 @@ st.markdown(
         color: #2E8B55;
         font-size: 13px;
         font-weight: 900;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
     }
 
     .detail-label {
         color: #8A93A3;
         font-size: 12px;
-        font-weight: 850;
-        margin-bottom: 5px;
+        font-weight: 900;
+        margin-top: 10px;
+        margin-bottom: 4px;
     }
 
     .detail-text {
@@ -296,41 +319,6 @@ st.markdown(
         font-size: 13px;
         font-weight: 700;
         line-height: 1.5;
-        margin-bottom: 14px;
-    }
-
-    .detail-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 11px;
-    }
-
-    .detail-metric {
-        background: #FFFFFF;
-        border-radius: 16px;
-        padding: 13px 14px;
-        border: 1px solid #E8EEF5;
-    }
-
-    .metric-label-custom {
-        color: #8A93A3;
-        font-size: 12px;
-        font-weight: 850;
-        margin-bottom: 6px;
-    }
-
-    .metric-value-custom {
-        color: #202532;
-        font-size: 23px;
-        font-weight: 900;
-        letter-spacing: -0.04em;
-    }
-
-    .metric-delta-custom {
-        color: #248A3D;
-        font-size: 13px;
-        font-weight: 900;
-        margin-top: 3px;
     }
 
     .small-info {
@@ -370,7 +358,12 @@ def panel_title(title: str, subtitle: str | None = None) -> None:
             unsafe_allow_html=True,
         )
     else:
-        st.markdown(f"""<div class="panel-title">{title}</div>""", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="panel-title">{title}</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_legend() -> None:
@@ -706,8 +699,8 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
         search_text = str(row.get("search_text_clean", ""))
 
         score = 0
-
         tokens = [t for t in re.split(r"[,\s·/]+", clean_text(text)) if len(t) >= 2]
+
         if search_text and any(token in search_text for token in tokens):
             score += 5
 
@@ -889,6 +882,9 @@ def make_deck(
     map_gdf: gpd.GeoDataFrame,
     use_3d_column: bool,
     focus_zone_id: Optional[str] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    zoom: Optional[float] = None,
 ) -> pdk.Deck:
     layers = [make_polygon_layer(map_gdf)]
 
@@ -897,19 +893,23 @@ def make_deck(
 
     focus = map_gdf[map_gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
 
-    if not focus.empty:
-        latitude = float(focus["lat"].iloc[0])
-        longitude = float(focus["lon"].iloc[0])
-        zoom = 12.0
+    if latitude is not None and longitude is not None and zoom is not None:
+        view_lat = latitude
+        view_lon = longitude
+        view_zoom = zoom
+    elif not focus.empty:
+        view_lat = float(focus["lat"].iloc[0])
+        view_lon = float(focus["lon"].iloc[0])
+        view_zoom = 12.0
     else:
-        latitude = 37.5665
-        longitude = 126.9780
-        zoom = 10.05
+        view_lat = 37.5665
+        view_lon = 126.9780
+        view_zoom = 10.05
 
     view_state = pdk.ViewState(
-        latitude=latitude,
-        longitude=longitude,
-        zoom=zoom,
+        latitude=view_lat,
+        longitude=view_lon,
+        zoom=view_zoom,
         pitch=42 if use_3d_column else 0,
         bearing=0,
     )
@@ -992,7 +992,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
     st.markdown(cards_html, unsafe_allow_html=True)
 
 
-def draw_selected_detail(
+def draw_selected_detail_native(
     selected_label: str,
     selected_zone_id: str,
     selected_dongs: str,
@@ -1007,40 +1007,32 @@ def draw_selected_detail(
 ):
     st.markdown(
         f"""
-        <div class="detail-card">
-            <div class="detail-label">선택 생활권 상세</div>
+        <div class="detail-box">
             <div class="detail-title">{selected_label}</div>
             <div class="detail-id">{selected_zone_id}</div>
-
             <div class="detail-label">조회 시각</div>
             <div class="detail-text">{selected_date} {selected_time}</div>
-
             <div class="detail-label">포함 행정동</div>
             <div class="detail-text">{selected_dongs if selected_dongs else "행정동 정보 없음"}</div>
-
-            <div class="detail-grid">
-                <div class="detail-metric">
-                    <div class="metric-label-custom">현재 예측</div>
-                    <div class="metric-value-custom">{zone_pred_kwh:.1f} kWh</div>
-                </div>
-                <div class="detail-metric">
-                    <div class="metric-label-custom">수요 순위</div>
-                    <div class="metric-value-custom">{int(zone_rank)} / {n_zones}</div>
-                </div>
-                <div class="detail-metric">
-                    <div class="metric-label-custom">일일 총량</div>
-                    <div class="metric-value-custom">{total_day_kwh:.0f} kWh</div>
-                </div>
-                <div class="detail-metric">
-                    <div class="metric-label-custom">피크 시간</div>
-                    <div class="metric-value-custom">{peak_time}</div>
-                    <div class="metric-delta-custom">↑ {peak_kwh:.1f} kWh</div>
-                </div>
-            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+    m1, m2 = st.columns(2)
+    m3, m4 = st.columns(2)
+
+    with m1:
+        st.metric("현재 예측", f"{zone_pred_kwh:.1f} kWh")
+
+    with m2:
+        st.metric("수요 순위", f"{int(zone_rank)} / {n_zones}")
+
+    with m3:
+        st.metric("일일 총량", f"{total_day_kwh:.0f} kWh")
+
+    with m4:
+        st.metric("피크 시간", peak_time, f"{peak_kwh:.1f} kWh")
 
 
 def build_answer(
@@ -1063,7 +1055,7 @@ def build_answer(
         f"- 전체 {n_zones}개 생활권 중 수요 순위: **{int(zone_rank)}위**\n"
         f"- 선택 날짜 총 예측 충전량: **{total_day_kwh:.0f} kWh**\n"
         f"- 피크 시간: **{peak_time}**, 피크 예측값 **{peak_kwh:.1f} kWh**\n\n"
-        f"지도는 해당 생활권으로 확대되었고, 오른쪽 패널에 상세 정보를 표시했습니다."
+        f"지도는 약 2~3초 동안 해당 생활권으로 확대되며, 오른쪽 패널에 상세 정보를 표시했습니다."
     )
 
 
@@ -1106,6 +1098,9 @@ if "use_3d_column" not in st.session_state:
 
 if "has_query" not in st.session_state:
     st.session_state.has_query = False
+
+if "animate_zoom" not in st.session_state:
+    st.session_state.animate_zoom = False
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
@@ -1268,6 +1263,7 @@ with chat_col:
             st.session_state.selected_time = parsed["time"]
             st.session_state.selected_zone_id = parsed["zone_id"]
             st.session_state.has_query = True
+            st.session_state.animate_zoom = True
 
             st.rerun()
 
@@ -1305,13 +1301,58 @@ with map_col:
             ),
         )
 
-        deck = make_deck(
-            map_gdf=map_gdf,
-            use_3d_column=st.session_state.use_3d_column,
-            focus_zone_id=focus_zone_id,
-        )
+        map_placeholder = st.empty()
 
-        st.pydeck_chart(deck, use_container_width=True, height=MAP_HEIGHT)
+        focus = map_gdf[map_gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
+
+        if (
+            st.session_state.animate_zoom
+            and st.session_state.has_query
+            and not focus.empty
+        ):
+            start_lat = 37.5665
+            start_lon = 126.9780
+            start_zoom = 10.05
+
+            target_lat = float(focus["lat"].iloc[0])
+            target_lon = float(focus["lon"].iloc[0])
+            target_zoom = 12.0
+
+            steps = 12
+
+            for i in range(steps):
+                t = i / (steps - 1)
+
+                # ease-in-out 느낌의 보간
+                eased = 0.5 - 0.5 * np.cos(np.pi * t)
+
+                lat = start_lat + (target_lat - start_lat) * eased
+                lon = start_lon + (target_lon - start_lon) * eased
+                zoom = start_zoom + (target_zoom - start_zoom) * eased
+
+                deck = make_deck(
+                    map_gdf=map_gdf,
+                    use_3d_column=st.session_state.use_3d_column,
+                    focus_zone_id=focus_zone_id,
+                    latitude=lat,
+                    longitude=lon,
+                    zoom=zoom,
+                )
+
+                map_placeholder.pydeck_chart(deck, use_container_width=True, height=MAP_HEIGHT)
+                time.sleep(0.18)
+
+            st.session_state.animate_zoom = False
+
+        else:
+            deck = make_deck(
+                map_gdf=map_gdf,
+                use_3d_column=st.session_state.use_3d_column,
+                focus_zone_id=focus_zone_id,
+            )
+
+            map_placeholder.pydeck_chart(deck, use_container_width=True, height=MAP_HEIGHT)
+
         render_legend()
 
         use_3d = st.toggle(
@@ -1335,7 +1376,7 @@ with alert_col:
                 "챗봇이 해석한 위치의 예측 결과입니다.",
             )
 
-            draw_selected_detail(
+            draw_selected_detail_native(
                 selected_label=selected_label,
                 selected_zone_id=selected_zone_id,
                 selected_dongs=selected_dongs,
@@ -1377,7 +1418,7 @@ with alert_col:
 
 
 # =========================================================
-# 하단 데이터 안내
+# 하단 안내
 # =========================================================
 with st.expander("데이터 해석 안내"):
     st.markdown(
