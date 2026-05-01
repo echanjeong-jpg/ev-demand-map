@@ -1001,6 +1001,7 @@ def make_deck(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     zoom: Optional[float] = None,
+    transition_ms: int = 0,
 ) -> pdk.Deck:
     layers = [make_polygon_layer(map_gdf)]
 
@@ -1022,13 +1023,21 @@ def make_deck(
         view_lon = 126.9780
         view_zoom = 10.05
 
-    view_state = pdk.ViewState(
+    view_kwargs = dict(
         latitude=view_lat,
         longitude=view_lon,
         zoom=view_zoom,
         pitch=42 if use_3d_column else 0,
         bearing=0,
     )
+
+    # deck.gl 자체 transition 기능 사용
+    # Python 반복 렌더링보다 훨씬 부드럽게 보임
+    if transition_ms > 0:
+        view_kwargs["transition_duration"] = transition_ms
+        view_kwargs["transition_interpolator"] = pdk.types.String("FlyToInterpolator")
+
+    view_state = pdk.ViewState(**view_kwargs)
 
     tooltip = {
         "html": """
@@ -1423,31 +1432,43 @@ with map_col:
             target_lon = float(focus["lon"].iloc[0])
             target_zoom = 12.0
 
-            steps = 72
-            frame_sleep = 0.024
+            # 1단계: 먼저 서울 전체 지도를 즉시 표시
+            start_deck = make_deck(
+                map_gdf=map_gdf,
+                use_3d_column=st.session_state.use_3d_column,
+                focus_zone_id=focus_zone_id,
+                latitude=start_lat,
+                longitude=start_lon,
+                zoom=start_zoom,
+                transition_ms=0,
+            )
+            map_placeholder.pydeck_chart(
+                start_deck,
+                use_container_width=True,
+                height=MAP_HEIGHT,
+            )
 
-            for i in range(steps):
-                t = i / (steps - 1)
+            # 아주 짧게 대기 후 deck.gl 자체 FlyTo 애니메이션으로 확대
+            time.sleep(0.15)
 
-                # smootherstep: 6t^5 - 15t^4 + 10t^3
-                eased = t * t * t * (t * (t * 6 - 15) + 10)
+            # 2단계: deck.gl transition으로 2.3초 동안 부드럽게 확대
+            target_deck = make_deck(
+                map_gdf=map_gdf,
+                use_3d_column=st.session_state.use_3d_column,
+                focus_zone_id=focus_zone_id,
+                latitude=target_lat,
+                longitude=target_lon,
+                zoom=target_zoom,
+                transition_ms=2300,
+            )
+            map_placeholder.pydeck_chart(
+                target_deck,
+                use_container_width=True,
+                height=MAP_HEIGHT,
+            )
 
-                lat = start_lat + (target_lat - start_lat) * eased
-                lon = start_lon + (target_lon - start_lon) * eased
-                zoom = start_zoom + (target_zoom - start_zoom) * eased
-
-                deck = make_deck(
-                    map_gdf=map_gdf,
-                    use_3d_column=st.session_state.use_3d_column,
-                    focus_zone_id=focus_zone_id,
-                    latitude=lat,
-                    longitude=lon,
-                    zoom=zoom,
-                )
-
-                map_placeholder.pydeck_chart(deck, use_container_width=True, height=MAP_HEIGHT)
-                time.sleep(frame_sleep)
-
+            # 애니메이션이 끝난 뒤 상태 해제
+            time.sleep(2.35)
             st.session_state.animate_zoom = False
 
         else:
