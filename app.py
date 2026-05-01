@@ -12,6 +12,7 @@ import pandas as pd
 import geopandas as gpd
 import pydeck as pdk
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 # =========================================================
@@ -35,6 +36,7 @@ DEFAULT_TIME = "18:00"
 
 PANEL_HEIGHT = 760
 MAP_HEIGHT = 620
+CHAT_SCROLL_HEIGHT = 415
 
 
 # =========================================================
@@ -64,7 +66,7 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 1.2rem;
+        padding-top: 0.7rem;
         padding-bottom: 1.5rem;
         max-width: 1720px;
     }
@@ -97,41 +99,6 @@ st.markdown(
         border-radius: 24px;
         box-shadow: 0 10px 30px rgba(35, 55, 80, 0.07);
         border: 1px solid rgba(220, 228, 238, 0.95);
-    }
-
-    .top-logo {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 0.85rem;
-    }
-
-    .logo-box {
-        width: 38px;
-        height: 38px;
-        border-radius: 12px;
-        background: #FFFFFF;
-        border: 1px solid #DDE6F2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #2563EB;
-        font-weight: 900;
-        box-shadow: 0 6px 18px rgba(35, 55, 80, 0.08);
-    }
-
-    .logo-title {
-        color: #202532;
-        font-size: 28px;
-        font-weight: 900;
-        letter-spacing: -0.055em;
-    }
-
-    .logo-subtitle {
-        color: #7C8594;
-        font-size: 13px;
-        font-weight: 700;
-        margin-top: -4px;
     }
 
     .panel-title {
@@ -181,52 +148,6 @@ st.markdown(
         font-size: 12px;
         font-weight: 900;
         margin-bottom: 8px;
-    }
-
-    .chat-scroll-box {
-        height: 420px;
-        overflow-y: auto;
-        padding: 8px 4px 8px 2px;
-        margin-bottom: 10px;
-        border-top: 1px solid #EEF2F7;
-        border-bottom: 1px solid #EEF2F7;
-    }
-
-    .chat-bubble-row {
-        display: flex;
-        margin-bottom: 12px;
-    }
-
-    .chat-bubble-row.user {
-        justify-content: flex-end;
-    }
-
-    .chat-bubble-row.assistant {
-        justify-content: flex-start;
-    }
-
-    .chat-bubble {
-        max-width: 88%;
-        border-radius: 16px;
-        padding: 11px 13px;
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 1.55;
-        white-space: pre-wrap;
-        word-break: keep-all;
-    }
-
-    .chat-bubble.user {
-        background: #2E6BEA;
-        color: #FFFFFF;
-        border-bottom-right-radius: 5px;
-    }
-
-    .chat-bubble.assistant {
-        background: #F8FAFD;
-        color: #2F3747;
-        border: 1px solid #E3EAF3;
-        border-bottom-left-radius: 5px;
     }
 
     .legend-wrap {
@@ -442,22 +363,111 @@ def escape_html(text: str) -> str:
         .replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
+        .replace("\n", "<br>")
     )
 
 
 def render_chat_messages(messages: list[dict]) -> None:
-    html = '<div class="chat-scroll-box">'
+    bubbles = ""
+
     for msg in messages:
         role = msg.get("role", "assistant")
         content = escape_html(msg.get("content", ""))
         role_class = "user" if role == "user" else "assistant"
-        html += f"""
+
+        bubbles += f"""
         <div class="chat-bubble-row {role_class}">
             <div class="chat-bubble {role_class}">{content}</div>
         </div>
         """
-    html += "</div>"
-    st.markdown(html, unsafe_allow_html=True)
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8" />
+    <style>
+        html, body {{
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        }}
+
+        .chat-scroll-box {{
+            height: {CHAT_SCROLL_HEIGHT}px;
+            overflow-y: auto;
+            padding: 8px 4px 8px 2px;
+            box-sizing: border-box;
+            border-top: 1px solid #EEF2F7;
+            border-bottom: 1px solid #EEF2F7;
+            background: transparent;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar {{
+            width: 8px;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar-thumb {{
+            background: #CDD7E5;
+            border-radius: 999px;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar-track {{
+            background: transparent;
+        }}
+
+        .chat-bubble-row {{
+            display: flex;
+            margin-bottom: 12px;
+        }}
+
+        .chat-bubble-row.user {{
+            justify-content: flex-end;
+        }}
+
+        .chat-bubble-row.assistant {{
+            justify-content: flex-start;
+        }}
+
+        .chat-bubble {{
+            max-width: 88%;
+            border-radius: 16px;
+            padding: 11px 13px;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.55;
+            word-break: keep-all;
+            box-sizing: border-box;
+        }}
+
+        .chat-bubble.user {{
+            background: #2E6BEA;
+            color: #FFFFFF;
+            border-bottom-right-radius: 5px;
+        }}
+
+        .chat-bubble.assistant {{
+            background: #F8FAFD;
+            color: #2F3747;
+            border: 1px solid #E3EAF3;
+            border-bottom-left-radius: 5px;
+        }}
+    </style>
+    </head>
+    <body>
+        <div class="chat-scroll-box" id="chatbox">
+            {bubbles}
+        </div>
+        <script>
+            const box = document.getElementById("chatbox");
+            box.scrollTop = box.scrollHeight;
+        </script>
+    </body>
+    </html>
+    """
+
+    components.html(html, height=CHAT_SCROLL_HEIGHT + 8, scrolling=False)
 
 
 # =========================================================
@@ -1194,23 +1204,6 @@ if "messages" not in st.session_state:
             ),
         }
     ]
-
-
-# =========================================================
-# 상단
-# =========================================================
-st.markdown(
-    """
-    <div class="top-logo">
-        <div class="logo-box">EV</div>
-        <div>
-            <div class="logo-title">E-Vlog</div>
-            <div class="logo-subtitle">LLM 기반 생활권별 전기차 충전 수요 예측 서비스</div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 
 # =========================================================
