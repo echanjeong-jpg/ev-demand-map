@@ -38,7 +38,6 @@ PANEL_HEIGHT = 760
 MAP_HEIGHT = 620
 
 # 챗봇 패널 내부 높이 조정값
-CHAT_GUIDE_HEIGHT = 118
 CHAT_SCROLL_HEIGHT = 405
 
 
@@ -1031,8 +1030,7 @@ def make_deck(
         bearing=0,
     )
 
-    # deck.gl 자체 transition 기능 사용
-    # Python 반복 렌더링보다 훨씬 부드럽게 보임
+    # deck.gl 자체 전환 옵션
     if transition_ms > 0:
         view_kwargs["transition_duration"] = transition_ms
         view_kwargs["transition_interpolator"] = pdk.types.String("FlyToInterpolator")
@@ -1432,7 +1430,7 @@ with map_col:
             target_lon = float(focus["lon"].iloc[0])
             target_zoom = 12.0
 
-            # 1단계: 먼저 서울 전체 지도를 즉시 표시
+            # 1단계: 서울 전체 지도 표시
             start_deck = make_deck(
                 map_gdf=map_gdf,
                 use_3d_column=st.session_state.use_3d_column,
@@ -1448,10 +1446,9 @@ with map_col:
                 height=MAP_HEIGHT,
             )
 
-            # 아주 짧게 대기 후 deck.gl 자체 FlyTo 애니메이션으로 확대
             time.sleep(0.15)
 
-            # 2단계: deck.gl transition으로 2.3초 동안 부드럽게 확대
+            # 2단계: deck.gl FlyToInterpolator로 약 2.3초 동안 부드럽게 확대
             target_deck = make_deck(
                 map_gdf=map_gdf,
                 use_3d_column=st.session_state.use_3d_column,
@@ -1467,7 +1464,6 @@ with map_col:
                 height=MAP_HEIGHT,
             )
 
-            # 애니메이션이 끝난 뒤 상태 해제
             time.sleep(2.35)
             st.session_state.animate_zoom = False
 
