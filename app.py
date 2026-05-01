@@ -36,7 +36,10 @@ DEFAULT_TIME = "18:00"
 
 PANEL_HEIGHT = 760
 MAP_HEIGHT = 620
-CHAT_SCROLL_HEIGHT = 415
+
+# 챗봇 패널 내부 높이 조정값
+CHAT_GUIDE_HEIGHT = 118
+CHAT_SCROLL_HEIGHT = 405
 
 
 # =========================================================
@@ -91,7 +94,7 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlock"] {
-        gap: 0.72rem;
+        gap: 0.56rem;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -106,48 +109,60 @@ st.markdown(
         font-size: 23px;
         font-weight: 900;
         letter-spacing: -0.045em;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
+        line-height: 1.2;
     }
 
     .panel-subtitle {
         color: #7C8594;
         font-size: 13px;
         font-weight: 650;
-        margin-bottom: 14px;
+        margin-bottom: 8px;
+        line-height: 1.35;
     }
 
-    .chat-guide {
+    .chat-guide-compact {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
         border-radius: 16px;
-        padding: 13px 14px;
+        padding: 10px 12px;
         color: #5E6878;
-        font-size: 13px;
-        line-height: 1.55;
-        font-weight: 650;
-        margin-bottom: 12px;
-    }
-
-    .chat-example {
-        background: #FFFFFF;
-        border: 1px solid #E6EDF6;
-        border-radius: 13px;
-        padding: 9px 11px;
-        margin-top: 8px;
-        color: #2F3747;
         font-size: 12px;
-        font-weight: 800;
+        line-height: 1.35;
+        font-weight: 650;
+        margin-bottom: 8px;
     }
 
     .status-pill {
         display: inline-flex;
         border-radius: 999px;
-        padding: 5px 10px;
+        padding: 4px 9px;
         background: #EAF2FF;
         color: #1F6FE5;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 900;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
+    }
+
+    .chat-example-row {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-top: 7px;
+    }
+
+    .chat-example-small {
+        background: #FFFFFF;
+        border: 1px solid #E6EDF6;
+        border-radius: 11px;
+        padding: 6px 8px;
+        color: #2F3747;
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .legend-wrap {
@@ -304,18 +319,29 @@ st.markdown(
         opacity: 0.92;
     }
 
+    div[data-testid="stTextInput"] {
+        margin-bottom: 0rem;
+    }
+
     div[data-testid="stTextInput"] input {
         border-radius: 14px;
-        min-height: 44px;
+        min-height: 42px;
+        font-size: 13px;
+    }
+
+    div[data-testid="stForm"] {
+        border: 0;
+        padding: 0;
     }
 
     div[data-testid="stFormSubmitButton"] button {
         border-radius: 14px;
-        min-height: 44px;
+        min-height: 42px;
         font-weight: 900;
         background: #2E6BEA;
         color: white;
         border: 0;
+        margin-top: -0.3rem;
     }
     </style>
     """,
@@ -1304,11 +1330,13 @@ with chat_col:
 
         st.markdown(
             """
-            <div class="chat-guide">
-                <div class="status-pill">자연어 질의</div><br/>
-                질문을 입력하면 LLM이 날짜·시간·위치를 해석하고, 오른쪽 지도와 알림 패널을 갱신합니다.
-                <div class="chat-example">2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘</div>
-                <div class="chat-example">11월 25일 18시에 마포구 성산생활권 알려줘</div>
+            <div class="chat-guide-compact">
+                <div class="status-pill">자연어 질의</div>
+                <div>질문을 입력하면 날짜·시간·위치를 해석하고, 오른쪽 지도와 알림 패널을 갱신합니다.</div>
+                <div class="chat-example-row">
+                    <div class="chat-example-small">2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘</div>
+                    <div class="chat-example-small">11월 25일 18시에 마포구 성산생활권 알려줘</div>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1395,8 +1423,8 @@ with map_col:
             target_lon = float(focus["lon"].iloc[0])
             target_zoom = 12.0
 
-            steps = 36
-            frame_sleep = 0.045
+            steps = 72
+            frame_sleep = 0.024
 
             for i in range(steps):
                 t = i / (steps - 1)
