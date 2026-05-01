@@ -33,7 +33,8 @@ TIME_UNIT_MINUTES = 30
 DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
-MAP_HEIGHT = 720
+PANEL_HEIGHT = 760
+MAP_HEIGHT = 620
 
 
 # =========================================================
@@ -152,7 +153,7 @@ st.markdown(
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
         border-radius: 16px;
-        padding: 14px 15px;
+        padding: 13px 14px;
         color: #5E6878;
         font-size: 13px;
         line-height: 1.55;
@@ -164,7 +165,7 @@ st.markdown(
         background: #FFFFFF;
         border: 1px solid #E6EDF6;
         border-radius: 13px;
-        padding: 10px 12px;
+        padding: 9px 11px;
         margin-top: 8px;
         color: #2F3747;
         font-size: 12px;
@@ -180,6 +181,52 @@ st.markdown(
         font-size: 12px;
         font-weight: 900;
         margin-bottom: 8px;
+    }
+
+    .chat-scroll-box {
+        height: 420px;
+        overflow-y: auto;
+        padding: 8px 4px 8px 2px;
+        margin-bottom: 10px;
+        border-top: 1px solid #EEF2F7;
+        border-bottom: 1px solid #EEF2F7;
+    }
+
+    .chat-bubble-row {
+        display: flex;
+        margin-bottom: 12px;
+    }
+
+    .chat-bubble-row.user {
+        justify-content: flex-end;
+    }
+
+    .chat-bubble-row.assistant {
+        justify-content: flex-start;
+    }
+
+    .chat-bubble {
+        max-width: 88%;
+        border-radius: 16px;
+        padding: 11px 13px;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: keep-all;
+    }
+
+    .chat-bubble.user {
+        background: #2E6BEA;
+        color: #FFFFFF;
+        border-bottom-right-radius: 5px;
+    }
+
+    .chat-bubble.assistant {
+        background: #F8FAFD;
+        color: #2F3747;
+        border: 1px solid #E3EAF3;
+        border-bottom-left-radius: 5px;
     }
 
     .legend-wrap {
@@ -336,8 +383,18 @@ st.markdown(
         opacity: 0.92;
     }
 
-    div[data-testid="stChatInput"] {
-        margin-top: 12px;
+    div[data-testid="stTextInput"] input {
+        border-radius: 14px;
+        min-height: 44px;
+    }
+
+    div[data-testid="stFormSubmitButton"] button {
+        border-radius: 14px;
+        min-height: 44px;
+        font-weight: 900;
+        background: #2E6BEA;
+        color: white;
+        border: 0;
     }
     </style>
     """,
@@ -379,6 +436,30 @@ def render_legend() -> None:
     )
 
 
+def escape_html(text: str) -> str:
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def render_chat_messages(messages: list[dict]) -> None:
+    html = '<div class="chat-scroll-box">'
+    for msg in messages:
+        role = msg.get("role", "assistant")
+        content = escape_html(msg.get("content", ""))
+        role_class = "user" if role == "user" else "assistant"
+        html += f"""
+        <div class="chat-bubble-row {role_class}">
+            <div class="chat-bubble {role_class}">{content}</div>
+        </div>
+        """
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
+
+
 # =========================================================
 # 유틸 함수
 # =========================================================
@@ -408,7 +489,6 @@ def get_prediction_column(df: pd.DataFrame) -> str:
     for col in candidates:
         if col in df.columns:
             return col
-
     raise ValueError("CSV에 y_pred_kwh 또는 predicted_kwh 컬럼이 필요합니다.")
 
 
@@ -1049,13 +1129,13 @@ def build_answer(
 ) -> str:
     return (
         f"{selected_date} {selected_time} 기준으로 요청하신 위치는 "
-        f"**{selected_label}** 생활권에 포함됩니다.\n\n"
-        f"- 생활권ID: `{selected_zone_id}`\n"
-        f"- 선택 시각 예측 충전 수요: **{zone_pred_kwh:.1f} kWh**\n"
-        f"- 전체 {n_zones}개 생활권 중 수요 순위: **{int(zone_rank)}위**\n"
-        f"- 선택 날짜 총 예측 충전량: **{total_day_kwh:.0f} kWh**\n"
-        f"- 피크 시간: **{peak_time}**, 피크 예측값 **{peak_kwh:.1f} kWh**\n\n"
-        f"지도는 약 2~3초 동안 해당 생활권으로 확대되며, 오른쪽 패널에 상세 정보를 표시했습니다."
+        f"{selected_label} 생활권에 포함됩니다.\n\n"
+        f"생활권ID: {selected_zone_id}\n"
+        f"선택 시각 예측 충전 수요: {zone_pred_kwh:.1f} kWh\n"
+        f"전체 {n_zones}개 생활권 중 수요 순위: {int(zone_rank)}위\n"
+        f"선택 날짜 총 예측 충전량: {total_day_kwh:.0f} kWh\n"
+        f"피크 시간: {peak_time}, 피크 예측값 {peak_kwh:.1f} kWh\n\n"
+        f"지도는 해당 생활권으로 확대되며, 오른쪽 패널에 상세 정보를 표시했습니다."
     )
 
 
@@ -1108,9 +1188,9 @@ if "messages" not in st.session_state:
             "role": "assistant",
             "content": (
                 "안녕하세요. 저는 E-Vlog 충전수요 분석 LLM입니다.\n\n"
-                "보고 싶은 **날짜, 시간, 위치**를 자연어로 입력하면 "
+                "보고 싶은 날짜, 시간, 위치를 자연어로 입력하면 "
                 "지도에서 해당 생활권을 확대하고 예측 충전수요를 알려드립니다.\n\n"
-                "예: `2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘`"
+                "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
             ),
         }
     ]
@@ -1223,7 +1303,7 @@ chat_col, map_col, alert_col = st.columns([0.78, 1.42, 0.86], gap="small")
 # 1. 챗봇 LLM
 # =========================================================
 with chat_col:
-    with st.container(border=True):
+    with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
             "챗봇 LLM",
             "자연어로 날짜, 시간, 위치를 입력하세요.",
@@ -1241,14 +1321,18 @@ with chat_col:
             unsafe_allow_html=True,
         )
 
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+        render_chat_messages(st.session_state.messages)
 
-        user_text = st.chat_input("예: 2025년 11월 25일 18시에 청운효자동 수요")
+        with st.form("chat_form", clear_on_submit=True):
+            user_text = st.text_input(
+                "질문 입력",
+                placeholder="예: 2025년 11월 25일 18시에 청운효자동 수요",
+                label_visibility="collapsed",
+            )
+            submitted = st.form_submit_button("질문하기", use_container_width=True)
 
-        if user_text:
-            st.session_state.messages.append({"role": "user", "content": user_text})
+        if submitted and user_text.strip():
+            st.session_state.messages.append({"role": "user", "content": user_text.strip()})
 
             parsed = parse_user_query(
                 text=user_text,
@@ -1292,7 +1376,7 @@ if st.session_state.messages[-1]["role"] == "user":
 # 2. 지도
 # =========================================================
 with map_col:
-    with st.container(border=True):
+    with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
             "충전수요지도",
             (
@@ -1318,13 +1402,14 @@ with map_col:
             target_lon = float(focus["lon"].iloc[0])
             target_zoom = 12.0
 
-            steps = 12
+            steps = 36
+            frame_sleep = 0.045
 
             for i in range(steps):
                 t = i / (steps - 1)
 
-                # ease-in-out 느낌의 보간
-                eased = 0.5 - 0.5 * np.cos(np.pi * t)
+                # smootherstep: 6t^5 - 15t^4 + 10t^3
+                eased = t * t * t * (t * (t * 6 - 15) + 10)
 
                 lat = start_lat + (target_lat - start_lat) * eased
                 lon = start_lon + (target_lon - start_lon) * eased
@@ -1340,7 +1425,7 @@ with map_col:
                 )
 
                 map_placeholder.pydeck_chart(deck, use_container_width=True, height=MAP_HEIGHT)
-                time.sleep(0.18)
+                time.sleep(frame_sleep)
 
             st.session_state.animate_zoom = False
 
@@ -1369,7 +1454,7 @@ with map_col:
 # 3. 수요 급증 알림 / 선택 생활권 상세
 # =========================================================
 with alert_col:
-    with st.container(border=True):
+    with st.container(border=True, height=PANEL_HEIGHT):
         if st.session_state.has_query:
             panel_title(
                 "선택 생활권 상세",
