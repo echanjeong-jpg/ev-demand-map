@@ -118,6 +118,31 @@ st.markdown(
         line-height: 1.35;
     }
 
+    .map-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 8px;
+    }
+
+    .map-title-wrap {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .map-toggle-wrap {
+        min-width: 140px;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 2px;
+    }
+
+    .map-toggle-wrap div[data-testid="stCheckbox"],
+    .map-toggle-wrap div[data-testid="stToggle"] {
+        margin-top: 0 !important;
+    }
+
     .chat-guide-compact {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
@@ -1168,7 +1193,7 @@ def build_answer(
         f"전체 {n_zones}개 생활권 중 수요 순위: {int(zone_rank)}위\n"
         f"선택 날짜 총 예측 충전량: {total_day_kwh:.0f} kWh\n"
         f"피크 시간: {peak_time}, 피크 예측값 {peak_kwh:.1f} kWh\n\n"
-        f"지도는 해당 생활권으로 확대되며, 오른쪽 패널에 상세 정보를 표시했습니다."
+        f"지도는 해당 생활권으로 확대되며, 왼쪽 패널에 상세 정보를 표시했습니다."
     )
 
 
@@ -1311,12 +1336,170 @@ map_gdf = prepare_map_gdf(
 
 # =========================================================
 # 메인 3분할 레이아웃
+# 왼쪽: 알림/상세, 가운데: 지도, 오른쪽: 챗봇
 # =========================================================
-chat_col, map_col, alert_col = st.columns([0.78, 1.42, 0.86], gap="small")
+alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
 
 # =========================================================
-# 1. 챗봇 LLM
+# 1. 왼쪽: 수요 급증 알림 / 선택 생활권 상세
+# =========================================================
+with alert_col:
+    with st.container(border=True, height=PANEL_HEIGHT):
+        if st.session_state.has_query:
+            panel_title(
+                "선택 생활권 상세",
+                "챗봇이 해석한 위치의 예측 결과입니다.",
+            )
+
+            draw_selected_detail_native(
+                selected_label=selected_label,
+                selected_zone_id=selected_zone_id,
+                selected_dongs=selected_dongs,
+                zone_pred_kwh=zone_pred_kwh,
+                zone_rank=int(zone_rank),
+                n_zones=n_zones,
+                total_day_kwh=total_day_kwh,
+                peak_time=peak_time,
+                peak_kwh=peak_kwh,
+                selected_date=selected_date,
+                selected_time=selected_time,
+            )
+
+            st.markdown(
+                """
+                <div class="small-info">
+                지도에서는 선택된 생활권을 주황색으로 강조하고, 해당 생활권 중심으로 확대 표시합니다.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        else:
+            panel_title(
+                "수요 급증 알림",
+                "기본 상태에서는 선택 시각 기준 수요가 높은 권역을 표시합니다.",
+            )
+
+            draw_alerts(top10, selected_time)
+
+            st.markdown(
+                """
+                <div class="small-info">
+                챗봇에 날짜, 시간, 위치를 입력하면 이 영역은 선택 생활권 상세 정보로 전환됩니다.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+# =========================================================
+# 2. 가운데: 지도
+# =========================================================
+with map_col:
+    with st.container(border=True, height=PANEL_HEIGHT):
+        header_left, header_right = st.columns([0.72, 0.28], gap="small")
+
+        with header_left:
+            panel_title(
+                "충전수요지도",
+                (
+                    f"{selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · "
+                    f"전체 Time Index {global_time_idx}"
+                ),
+            )
+
+        with header_right:
+            use_3d = st.toggle(
+                "3D 막대 표시",
+                value=st.session_state.use_3d_column,
+                key="map_3d_toggle",
+            )
+
+            if use_3d != st.session_state.use_3d_column:
+                st.session_state.use_3d_column = use_3d
+                st.rerun()
+
+        map_placeholder = st.empty()
+
+        focus = map_gdf[map_gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
+
+        if (
+            st.session_state.animate_zoom
+            and st.session_state.has_query
+            and not focus.empty
+        ):
+            start_lat = 37.5665
+            start_lon = 126.9780
+            start_zoom = 10.05
+
+            target_lat = float(focus["lat"].iloc[0])
+            target_lon = float(focus["lon"].iloc[0])
+            target_zoom = 12.0
+
+            steps = 42
+            frame_sleep = 0.05
+
+            for i in range(steps):
+                t = i / (steps - 1)
+                eased = t * t * t * (t * (t * 6 - 15) + 10)
+
+                lat = start_lat + (target_lat - start_lat) * eased
+                lon = start_lon + (target_lon - start_lon) * eased
+                zoom = start_zoom + (target_zoom - start_zoom) * eased
+
+                deck = make_deck(
+                    map_gdf=map_gdf,
+                    use_3d_column=st.session_state.use_3d_column,
+                    focus_zone_id=focus_zone_id,
+                    latitude=lat,
+                    longitude=lon,
+                    zoom=zoom,
+                )
+
+                map_placeholder.pydeck_chart(
+                    deck,
+                    use_container_width=True,
+                    height=MAP_HEIGHT,
+                )
+
+                time.sleep(frame_sleep)
+
+            final_deck = make_deck(
+                map_gdf=map_gdf,
+                use_3d_column=st.session_state.use_3d_column,
+                focus_zone_id=focus_zone_id,
+                latitude=target_lat,
+                longitude=target_lon,
+                zoom=target_zoom,
+            )
+
+            map_placeholder.pydeck_chart(
+                final_deck,
+                use_container_width=True,
+                height=MAP_HEIGHT,
+            )
+
+            st.session_state.animate_zoom = False
+
+        else:
+            deck = make_deck(
+                map_gdf=map_gdf,
+                use_3d_column=st.session_state.use_3d_column,
+                focus_zone_id=focus_zone_id,
+            )
+
+            map_placeholder.pydeck_chart(
+                deck,
+                use_container_width=True,
+                height=MAP_HEIGHT,
+            )
+
+        render_legend()
+
+
+# =========================================================
+# 3. 오른쪽: 챗봇 LLM
 # =========================================================
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
@@ -1329,7 +1512,7 @@ with chat_col:
             """
             <div class="chat-guide-compact">
                 <div class="status-pill">자연어 질의</div>
-                <div>질문을 입력하면 날짜·시간·위치를 해석하고, 오른쪽 지도와 알림 패널을 갱신합니다.</div>
+                <div>질문을 입력하면 날짜·시간·위치를 해석하고, 가운데 지도와 왼쪽 패널을 갱신합니다.</div>
                 <div class="chat-example-row">
                     <div class="chat-example-small">2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘</div>
                     <div class="chat-example-small">11월 25일 18시에 마포구 성산생활권 알려줘</div>
@@ -1391,162 +1574,6 @@ if st.session_state.messages[-1]["role"] == "user":
 
 
 # =========================================================
-# 2. 지도
-# =========================================================
-with map_col:
-    with st.container(border=True, height=PANEL_HEIGHT):
-        panel_title(
-            "충전수요지도",
-            (
-                f"{selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · "
-                f"전체 Time Index {global_time_idx}"
-            ),
-        )
-
-        map_placeholder = st.empty()
-
-        focus = map_gdf[map_gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
-
-        if (
-            st.session_state.animate_zoom
-            and st.session_state.has_query
-            and not focus.empty
-        ):
-            start_lat = 37.5665
-            start_lon = 126.9780
-            start_zoom = 10.05
-
-            target_lat = float(focus["lat"].iloc[0])
-            target_lon = float(focus["lon"].iloc[0])
-            target_zoom = 12.0
-
-            # 약 2.1초 내외로 부드럽게 확대
-            steps = 42
-            frame_sleep = 0.05
-
-            for i in range(steps):
-                t = i / (steps - 1)
-
-                # smootherstep: 6t^5 - 15t^4 + 10t^3
-                eased = t * t * t * (t * (t * 6 - 15) + 10)
-
-                lat = start_lat + (target_lat - start_lat) * eased
-                lon = start_lon + (target_lon - start_lon) * eased
-                zoom = start_zoom + (target_zoom - start_zoom) * eased
-
-                deck = make_deck(
-                    map_gdf=map_gdf,
-                    use_3d_column=st.session_state.use_3d_column,
-                    focus_zone_id=focus_zone_id,
-                    latitude=lat,
-                    longitude=lon,
-                    zoom=zoom,
-                )
-
-                map_placeholder.pydeck_chart(
-                    deck,
-                    use_container_width=True,
-                    height=MAP_HEIGHT,
-                )
-
-                time.sleep(frame_sleep)
-
-            # 마지막 위치 정확히 고정
-            final_deck = make_deck(
-                map_gdf=map_gdf,
-                use_3d_column=st.session_state.use_3d_column,
-                focus_zone_id=focus_zone_id,
-                latitude=target_lat,
-                longitude=target_lon,
-                zoom=target_zoom,
-            )
-
-            map_placeholder.pydeck_chart(
-                final_deck,
-                use_container_width=True,
-                height=MAP_HEIGHT,
-            )
-
-            st.session_state.animate_zoom = False
-
-        else:
-            deck = make_deck(
-                map_gdf=map_gdf,
-                use_3d_column=st.session_state.use_3d_column,
-                focus_zone_id=focus_zone_id,
-            )
-
-            map_placeholder.pydeck_chart(
-                deck,
-                use_container_width=True,
-                height=MAP_HEIGHT,
-            )
-
-        render_legend()
-
-        use_3d = st.toggle(
-            "3D 막대 표시",
-            value=st.session_state.use_3d_column,
-        )
-
-        if use_3d != st.session_state.use_3d_column:
-            st.session_state.use_3d_column = use_3d
-            st.rerun()
-
-
-# =========================================================
-# 3. 수요 급증 알림 / 선택 생활권 상세
-# =========================================================
-with alert_col:
-    with st.container(border=True, height=PANEL_HEIGHT):
-        if st.session_state.has_query:
-            panel_title(
-                "선택 생활권 상세",
-                "챗봇이 해석한 위치의 예측 결과입니다.",
-            )
-
-            draw_selected_detail_native(
-                selected_label=selected_label,
-                selected_zone_id=selected_zone_id,
-                selected_dongs=selected_dongs,
-                zone_pred_kwh=zone_pred_kwh,
-                zone_rank=int(zone_rank),
-                n_zones=n_zones,
-                total_day_kwh=total_day_kwh,
-                peak_time=peak_time,
-                peak_kwh=peak_kwh,
-                selected_date=selected_date,
-                selected_time=selected_time,
-            )
-
-            st.markdown(
-                """
-                <div class="small-info">
-                지도에서는 선택된 생활권을 주황색으로 강조하고, 해당 생활권 중심으로 확대 표시합니다.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        else:
-            panel_title(
-                "수요 급증 알림",
-                "기본 상태에서는 선택 시각 기준 수요가 높은 권역을 표시합니다.",
-            )
-
-            draw_alerts(top10, selected_time)
-
-            st.markdown(
-                """
-                <div class="small-info">
-                챗봇에 날짜, 시간, 위치를 입력하면 이 영역은 선택 생활권 상세 정보로 전환됩니다.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-
-# =========================================================
 # 하단 안내
 # =========================================================
 with st.expander("데이터 해석 안내"):
@@ -1563,7 +1590,7 @@ with st.expander("데이터 해석 안내"):
         → 위치가 포함된 생활권역 탐색
         → 해당 시각의 예측 충전수요 조회
         → 지도 확대 및 생활권 강조
-        → 오른쪽 패널에 선택 생활권 상세 정보 표시
+        → 왼쪽 패널에 선택 생활권 상세 정보 표시
         ```
 
         현재 자연어 해석은 규칙 기반으로 구현되어 있으며, 추후 OpenAI API 또는 별도 LLM API를 연결할 수 있습니다.
