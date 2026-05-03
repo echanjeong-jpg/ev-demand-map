@@ -314,25 +314,44 @@ st.markdown(
         margin-bottom: 0rem;
     }
 
+    div[data-testid="stTextInput"] > div {
+        background: #FFFFFF !important;
+        border-radius: 16px !important;
+        border: 1px solid #DCE5F0 !important;
+        box-shadow: 0 8px 20px rgba(35, 55, 80, 0.08) !important;
+    }
+
     div[data-testid="stTextInput"] input {
-        border-radius: 14px;
-        min-height: 42px;
+        background: #FFFFFF !important;
+        color: #202532 !important;
+        border-radius: 16px !important;
+        min-height: 46px;
         font-size: 13px;
+        font-weight: 700;
+        border: none !important;
+    }
+
+    div[data-testid="stTextInput"] input::placeholder {
+        color: #8A93A3 !important;
+        opacity: 1 !important;
+        font-weight: 650;
     }
 
     div[data-testid="stForm"] {
         border: 0;
         padding: 0;
+        background: transparent;
     }
 
     div[data-testid="stFormSubmitButton"] button {
         border-radius: 14px;
-        min-height: 42px;
+        min-height: 44px;
         font-weight: 900;
         background: #2E6BEA;
         color: white;
         border: 0;
-        margin-top: -0.3rem;
+        margin-top: -0.15rem;
+        box-shadow: 0 8px 18px rgba(46, 107, 234, 0.24);
     }
     </style>
     """,
@@ -1049,7 +1068,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 
         <script>
             const payload = {payload_json};
-            const animate = {str(animate).lower()};
+            const shouldAnimate = {str(animate).lower()};
 
             const geojsonData = payload.geojson;
             const columnData = payload.columns;
@@ -1057,6 +1076,25 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
             const targetView = payload.target_view;
             const use3d = payload.use_3d_column;
             const hasFocus = payload.has_focus;
+
+            function smootherstep(t) {{
+                return t * t * t * (t * (t * 6 - 15) + 10);
+            }}
+
+            function lerp(a, b, t) {{
+                return a + (b - a) * t;
+            }}
+
+            function makeView(start, target, t) {{
+                const e = smootherstep(t);
+                return {{
+                    latitude: lerp(start.latitude, target.latitude, e),
+                    longitude: lerp(start.longitude, target.longitude, e),
+                    zoom: lerp(start.zoom, target.zoom, e),
+                    pitch: lerp(start.pitch || 0, target.pitch || 0, e),
+                    bearing: lerp(start.bearing || 0, target.bearing || 0, e)
+                }};
+            }}
 
             function polygonLayer() {{
                 return new deck.GeoJsonLayer({{
@@ -1098,12 +1136,18 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 return base;
             }}
 
+            let currentView = shouldAnimate && hasFocus ? startView : targetView;
+
             const deckgl = new deck.DeckGL({{
                 container: "map",
                 mapStyle: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-                initialViewState: animate && hasFocus ? startView : targetView,
+                viewState: currentView,
                 controller: true,
                 layers: layers(),
+                onViewStateChange: e => {{
+                    currentView = e.viewState;
+                    deckgl.setProps({{viewState: currentView}});
+                }},
                 getTooltip: info => {{
                     if (!info.object) return null;
 
@@ -1126,17 +1170,38 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 }}
             }});
 
-            if (animate && hasFocus) {{
+            if (shouldAnimate && hasFocus) {{
+                const duration = 2200;
+                const delay = 180;
+                const animationStartView = startView;
+                const animationTargetView = targetView;
+
                 window.setTimeout(() => {{
-                    deckgl.setProps({{
-                        initialViewState: {{
-                            ...targetView,
-                            transitionDuration: 2300,
-                            transitionInterpolator: new deck.FlyToInterpolator(),
-                            transitionEasing: t => t * t * t * (t * (t * 6 - 15) + 10)
+                    const startTime = performance.now();
+
+                    function animateFrame(now) {{
+                        const raw = (now - startTime) / duration;
+                        const t = Math.min(Math.max(raw, 0), 1);
+
+                        const nextView = makeView(animationStartView, animationTargetView, t);
+
+                        deckgl.setProps({{
+                            viewState: nextView,
+                            layers: layers()
+                        }});
+
+                        if (t < 1) {{
+                            requestAnimationFrame(animateFrame);
+                        }} else {{
+                            deckgl.setProps({{
+                                viewState: animationTargetView,
+                                layers: layers()
+                            }});
                         }}
-                    }});
-                }}, 180);
+                    }}
+
+                    requestAnimationFrame(animateFrame);
+                }}, delay);
             }}
         </script>
     </body>
