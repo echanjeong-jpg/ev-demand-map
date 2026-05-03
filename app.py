@@ -3,14 +3,12 @@ from __future__ import annotations
 
 import json
 import re
-import time
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import pydeck as pdk
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -116,31 +114,6 @@ st.markdown(
         font-weight: 650;
         margin-bottom: 8px;
         line-height: 1.35;
-    }
-
-    .map-header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 14px;
-        margin-bottom: 8px;
-    }
-
-    .map-title-wrap {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .map-toggle-wrap {
-        min-width: 140px;
-        display: flex;
-        justify-content: flex-end;
-        padding-top: 2px;
-    }
-
-    .map-toggle-wrap div[data-testid="stCheckbox"],
-    .map-toggle-wrap div[data-testid="stToggle"] {
-        margin-top: 0 !important;
     }
 
     .chat-guide-compact {
@@ -335,10 +308,6 @@ st.markdown(
 
     iframe {
         border-radius: 18px;
-    }
-
-    .mapboxgl-control-container {
-        opacity: 0.92;
     }
 
     div[data-testid="stTextInput"] {
@@ -895,7 +864,7 @@ def parse_user_query(
 
 
 # =========================================================
-# 지도 생성
+# 지도 데이터 생성
 # =========================================================
 def prepare_map_gdf(
     boundary_gdf: gpd.GeoDataFrame,
@@ -937,145 +906,244 @@ def prepare_map_gdf(
 
     gdf["is_focus"] = gdf["ID"] == focus_zone_id
 
-    for col in ["zone_idx", "sample_idx", "global_time_idx", "daily_slot"]:
-        if col in gdf.columns:
-            gdf[col] = gdf[col].astype("Int64").astype(str)
-
     if "predicted_kwh" in gdf.columns:
         gdf["predicted_kwh"] = gdf["predicted_kwh"].astype(float).round(3)
 
     return gdf
 
 
-def make_polygon_layer(map_gdf: gpd.GeoDataFrame) -> pdk.Layer:
-    vmin = float(map_gdf["predicted_kwh"].quantile(0.05))
-    vmax = float(map_gdf["predicted_kwh"].quantile(0.95))
+def prepare_map_payload(map_gdf: gpd.GeoDataFrame, use_3d_column: bool, focus_zone_id: Optional[str]) -> dict:
+    gdf = map_gdf.copy()
 
-    map_gdf = map_gdf.copy()
+    vmin = float(gdf["predicted_kwh"].quantile(0.05))
+    vmax = float(gdf["predicted_kwh"].quantile(0.95))
 
-    map_gdf["fill_color"] = map_gdf.apply(
+    gdf["fill_color"] = gdf.apply(
         lambda row: [255, 130, 80, 220]
         if bool(row.get("is_focus", False))
         else kwh_to_color(row["predicted_kwh"], vmin, vmax),
         axis=1,
     )
 
-    map_gdf["line_color"] = map_gdf["is_focus"].apply(
+    gdf["line_color"] = gdf["is_focus"].apply(
         lambda x: [255, 60, 60, 255] if bool(x) else [255, 255, 255, 185]
     )
 
-    map_gdf["line_width"] = map_gdf["is_focus"].apply(
+    gdf["line_width"] = gdf["is_focus"].apply(
         lambda x: 90 if bool(x) else 20
     )
 
-    return pdk.Layer(
-        "GeoJsonLayer",
-        data=json.loads(map_gdf.to_json()),
-        pickable=True,
-        stroked=True,
-        filled=True,
-        extruded=False,
-        get_fill_color="properties.fill_color",
-        get_line_color="properties.line_color",
-        get_line_width="properties.line_width",
-        line_width_min_pixels=1.2,
-        auto_highlight=True,
-    )
+    for col in ["zone_idx", "sample_idx", "global_time_idx", "daily_slot"]:
+        if col in gdf.columns:
+            gdf[col] = gdf[col].astype("Int64").astype(str)
 
+    geojson = json.loads(gdf.to_json())
 
-def make_column_layer(map_gdf: gpd.GeoDataFrame) -> pdk.Layer:
-    df = pd.DataFrame(map_gdf.drop(columns="geometry")).copy()
-
-    vmin = float(df["predicted_kwh"].quantile(0.05))
-    vmax = float(df["predicted_kwh"].quantile(0.95))
-
-    df["fill_color"] = df.apply(
+    columns_df = pd.DataFrame(gdf.drop(columns="geometry")).copy()
+    columns_df["fill_color"] = columns_df.apply(
         lambda row: [255, 90, 70, 240]
         if bool(row.get("is_focus", False))
-        else kwh_to_color(row["predicted_kwh"], vmin, vmax),
+        else row["fill_color"],
         axis=1,
     )
-
-    df["elevation"] = df.apply(
+    columns_df["elevation"] = columns_df.apply(
         lambda row: float(row["predicted_kwh"]) * 110
         if bool(row.get("is_focus", False))
         else float(row["predicted_kwh"]) * 70,
         axis=1,
     )
 
-    return pdk.Layer(
-        "ColumnLayer",
-        data=df,
-        get_position=["lon", "lat"],
-        get_elevation="elevation",
-        elevation_scale=1,
-        radius=330,
-        get_fill_color="fill_color",
-        pickable=True,
-        auto_highlight=True,
-    )
+    columns = columns_df[
+        [
+            "ID",
+            "생활권역표시명",
+            "행정동명목록",
+            "predicted_kwh",
+            "lon",
+            "lat",
+            "is_focus",
+            "fill_color",
+            "elevation",
+        ]
+    ].to_dict(orient="records")
 
+    focus = gdf[gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
 
-def make_deck(
-    map_gdf: gpd.GeoDataFrame,
-    use_3d_column: bool,
-    focus_zone_id: Optional[str] = None,
-    latitude: Optional[float] = None,
-    longitude: Optional[float] = None,
-    zoom: Optional[float] = None,
-) -> pdk.Deck:
-    layers = [make_polygon_layer(map_gdf)]
-
-    if use_3d_column:
-        layers.append(make_column_layer(map_gdf))
-
-    focus = map_gdf[map_gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
-
-    if latitude is not None and longitude is not None and zoom is not None:
-        view_lat = latitude
-        view_lon = longitude
-        view_zoom = zoom
-    elif not focus.empty:
-        view_lat = float(focus["lat"].iloc[0])
-        view_lon = float(focus["lon"].iloc[0])
-        view_zoom = 12.0
+    if not focus.empty:
+        target_view = {
+            "latitude": float(focus["lat"].iloc[0]),
+            "longitude": float(focus["lon"].iloc[0]),
+            "zoom": 12.0,
+            "pitch": 42 if use_3d_column else 0,
+            "bearing": 0,
+        }
     else:
-        view_lat = 37.5665
-        view_lon = 126.9780
-        view_zoom = 10.05
+        target_view = {
+            "latitude": 37.5665,
+            "longitude": 126.9780,
+            "zoom": 10.05,
+            "pitch": 42 if use_3d_column else 0,
+            "bearing": 0,
+        }
 
-    view_state = pdk.ViewState(
-        latitude=view_lat,
-        longitude=view_lon,
-        zoom=view_zoom,
-        pitch=42 if use_3d_column else 0,
-        bearing=0,
-    )
-
-    tooltip = {
-        "html": """
-        <div style="font-family: Inter, sans-serif;">
-            <b>{생활권역표시명}</b><br/>
-            <span style="color:#B7C1D3;">생활권ID:</span> {ID}<br/>
-            <span style="color:#B7C1D3;">예측 충전량:</span> <b>{predicted_kwh} kWh</b><br/>
-            <span style="color:#B7C1D3;">행정동:</span> {행정동명목록}
-        </div>
-        """,
-        "style": {
-            "backgroundColor": "rgba(20, 30, 45, 0.92)",
-            "color": "white",
-            "fontSize": "12px",
-            "borderRadius": "12px",
-            "padding": "10px",
-        },
+    start_view = {
+        "latitude": 37.5665,
+        "longitude": 126.9780,
+        "zoom": 10.05,
+        "pitch": 42 if use_3d_column else 0,
+        "bearing": 0,
     }
 
-    return pdk.Deck(
-        layers=layers,
-        initial_view_state=view_state,
-        map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-        tooltip=tooltip,
-    )
+    return {
+        "geojson": geojson,
+        "columns": columns,
+        "start_view": start_view,
+        "target_view": target_view,
+        "use_3d_column": bool(use_3d_column),
+        "has_focus": bool(focus_zone_id and not focus.empty),
+    }
+
+
+def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
+    payload_json = json.dumps(payload, ensure_ascii=False)
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <script src="https://unpkg.com/deck.gl@8.9.36/dist.min.js"></script>
+        <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+        <style>
+            html, body {{
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: {height}px;
+                overflow: hidden;
+                background: #F8FAFD;
+                font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            }}
+
+            #map {{
+                position: relative;
+                width: 100%;
+                height: {height}px;
+                border-radius: 18px;
+                overflow: hidden;
+                background: #F8FAFD;
+            }}
+
+            .deck-tooltip {{
+                font-size: 12px !important;
+                border-radius: 12px !important;
+                padding: 10px !important;
+                background: rgba(20, 30, 45, 0.92) !important;
+                color: #FFFFFF !important;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+
+        <script>
+            const payload = {payload_json};
+            const animate = {str(animate).lower()};
+
+            const geojsonData = payload.geojson;
+            const columnData = payload.columns;
+            const startView = payload.start_view;
+            const targetView = payload.target_view;
+            const use3d = payload.use_3d_column;
+            const hasFocus = payload.has_focus;
+
+            function polygonLayer() {{
+                return new deck.GeoJsonLayer({{
+                    id: "living-area-polygons",
+                    data: geojsonData,
+                    pickable: true,
+                    stroked: true,
+                    filled: true,
+                    extruded: false,
+                    getFillColor: f => f.properties.fill_color || [220, 225, 232, 90],
+                    getLineColor: f => f.properties.line_color || [255, 255, 255, 180],
+                    getLineWidth: f => f.properties.line_width || 20,
+                    lineWidthMinPixels: 1.2,
+                    autoHighlight: true
+                }});
+            }}
+
+            function columnLayer() {{
+                return new deck.ColumnLayer({{
+                    id: "living-area-columns",
+                    data: columnData,
+                    diskResolution: 32,
+                    radius: 330,
+                    extruded: true,
+                    pickable: true,
+                    getPosition: d => [d.lon, d.lat],
+                    getFillColor: d => d.fill_color || [100, 140, 230, 190],
+                    getElevation: d => d.elevation || 0,
+                    elevationScale: 1,
+                    autoHighlight: true
+                }});
+            }}
+
+            function layers() {{
+                const base = [polygonLayer()];
+                if (use3d) {{
+                    base.push(columnLayer());
+                }}
+                return base;
+            }}
+
+            const deckgl = new deck.DeckGL({{
+                container: "map",
+                mapStyle: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+                initialViewState: animate && hasFocus ? startView : targetView,
+                controller: true,
+                layers: layers(),
+                getTooltip: info => {{
+                    if (!info.object) return null;
+
+                    const p = info.object.properties || info.object;
+                    const label = p["생활권역표시명"] || p.ID || "";
+                    const id = p.ID || "";
+                    const kwh = p.predicted_kwh || "";
+                    const dongs = p["행정동명목록"] || "";
+
+                    return {{
+                        html: `
+                            <div style="font-family: Inter, sans-serif;">
+                                <b>${{label}}</b><br/>
+                                <span style="color:#B7C1D3;">생활권ID:</span> ${{id}}<br/>
+                                <span style="color:#B7C1D3;">예측 충전량:</span> <b>${{kwh}} kWh</b><br/>
+                                <span style="color:#B7C1D3;">행정동:</span> ${{dongs}}
+                            </div>
+                        `
+                    }};
+                }}
+            }});
+
+            if (animate && hasFocus) {{
+                window.setTimeout(() => {{
+                    deckgl.setProps({{
+                        initialViewState: {{
+                            ...targetView,
+                            transitionDuration: 2300,
+                            transitionInterpolator: new deck.FlyToInterpolator(),
+                            transitionEasing: t => t * t * t * (t * (t * 6 - 15) + 10)
+                        }}
+                    }});
+                }}, 180);
+            }}
+        </script>
+    </body>
+    </html>
+    """
+
+    components.html(html, height=height, scrolling=False)
 
 
 # =========================================================
@@ -1420,80 +1488,20 @@ with map_col:
                 st.session_state.use_3d_column = use_3d
                 st.rerun()
 
-        map_placeholder = st.empty()
+        map_payload = prepare_map_payload(
+            map_gdf=map_gdf,
+            use_3d_column=st.session_state.use_3d_column,
+            focus_zone_id=focus_zone_id,
+        )
 
-        focus = map_gdf[map_gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
+        render_deck_map_html(
+            payload=map_payload,
+            animate=bool(st.session_state.animate_zoom and st.session_state.has_query),
+            height=MAP_HEIGHT,
+        )
 
-        if (
-            st.session_state.animate_zoom
-            and st.session_state.has_query
-            and not focus.empty
-        ):
-            start_lat = 37.5665
-            start_lon = 126.9780
-            start_zoom = 10.05
-
-            target_lat = float(focus["lat"].iloc[0])
-            target_lon = float(focus["lon"].iloc[0])
-            target_zoom = 12.0
-
-            steps = 42
-            frame_sleep = 0.05
-
-            for i in range(steps):
-                t = i / (steps - 1)
-                eased = t * t * t * (t * (t * 6 - 15) + 10)
-
-                lat = start_lat + (target_lat - start_lat) * eased
-                lon = start_lon + (target_lon - start_lon) * eased
-                zoom = start_zoom + (target_zoom - start_zoom) * eased
-
-                deck = make_deck(
-                    map_gdf=map_gdf,
-                    use_3d_column=st.session_state.use_3d_column,
-                    focus_zone_id=focus_zone_id,
-                    latitude=lat,
-                    longitude=lon,
-                    zoom=zoom,
-                )
-
-                map_placeholder.pydeck_chart(
-                    deck,
-                    use_container_width=True,
-                    height=MAP_HEIGHT,
-                )
-
-                time.sleep(frame_sleep)
-
-            final_deck = make_deck(
-                map_gdf=map_gdf,
-                use_3d_column=st.session_state.use_3d_column,
-                focus_zone_id=focus_zone_id,
-                latitude=target_lat,
-                longitude=target_lon,
-                zoom=target_zoom,
-            )
-
-            map_placeholder.pydeck_chart(
-                final_deck,
-                use_container_width=True,
-                height=MAP_HEIGHT,
-            )
-
+        if st.session_state.animate_zoom:
             st.session_state.animate_zoom = False
-
-        else:
-            deck = make_deck(
-                map_gdf=map_gdf,
-                use_3d_column=st.session_state.use_3d_column,
-                focus_zone_id=focus_zone_id,
-            )
-
-            map_placeholder.pydeck_chart(
-                deck,
-                use_container_width=True,
-                height=MAP_HEIGHT,
-            )
 
         render_legend()
 
