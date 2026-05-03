@@ -931,7 +931,11 @@ def prepare_map_gdf(
     return gdf
 
 
-def prepare_map_payload(map_gdf: gpd.GeoDataFrame, use_3d_column: bool, focus_zone_id: Optional[str]) -> dict:
+def prepare_map_payload(
+    map_gdf: gpd.GeoDataFrame,
+    use_3d_column: bool,
+    focus_zone_id: Optional[str],
+) -> dict:
     gdf = map_gdf.copy()
 
     vmin = float(gdf["predicted_kwh"].quantile(0.05))
@@ -1128,7 +1132,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 }});
             }}
 
-            function layers() {{
+            function makeLayers() {{
                 const base = [polygonLayer()];
                 if (use3d) {{
                     base.push(columnLayer());
@@ -1143,10 +1147,10 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 mapStyle: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
                 viewState: currentView,
                 controller: true,
-                layers: layers(),
+                layers: makeLayers(),
                 onViewStateChange: e => {{
                     currentView = e.viewState;
-                    deckgl.setProps({{viewState: currentView}});
+                    deckgl.setProps({{ viewState: currentView }});
                 }},
                 getTooltip: info => {{
                     if (!info.object) return null;
@@ -1172,9 +1176,14 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 
             if (shouldAnimate && hasFocus) {{
                 const duration = 2200;
-                const delay = 180;
+                const delay = 250;
                 const animationStartView = startView;
                 const animationTargetView = targetView;
+
+                deckgl.setProps({{
+                    viewState: animationStartView,
+                    layers: makeLayers()
+                }});
 
                 window.setTimeout(() => {{
                     const startTime = performance.now();
@@ -1182,12 +1191,11 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                     function animateFrame(now) {{
                         const raw = (now - startTime) / duration;
                         const t = Math.min(Math.max(raw, 0), 1);
-
                         const nextView = makeView(animationStartView, animationTargetView, t);
 
                         deckgl.setProps({{
                             viewState: nextView,
-                            layers: layers()
+                            layers: makeLayers()
                         }});
 
                         if (t < 1) {{
@@ -1195,7 +1203,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                         }} else {{
                             deckgl.setProps({{
                                 viewState: animationTargetView,
-                                layers: layers()
+                                layers: makeLayers()
                             }});
                         }}
                     }}
@@ -1468,6 +1476,28 @@ map_gdf = prepare_map_gdf(
 
 
 # =========================================================
+# 챗봇 답변 생성
+# 중요:
+# 여기서 답변을 생성하되 st.rerun()을 호출하지 않는다.
+# 그래야 지도 애니메이션이 중간에 끊기지 않고 실제로 실행된다.
+# =========================================================
+if st.session_state.messages[-1]["role"] == "user":
+    answer = build_answer(
+        selected_date=selected_date,
+        selected_time=selected_time,
+        selected_label=selected_label,
+        selected_zone_id=selected_zone_id,
+        zone_pred_kwh=zone_pred_kwh,
+        zone_rank=int(zone_rank),
+        n_zones=n_zones,
+        peak_time=peak_time,
+        peak_kwh=peak_kwh,
+        total_day_kwh=total_day_kwh,
+    )
+    st.session_state.messages.append({"role": "assistant", "content": answer})
+
+
+# =========================================================
 # 메인 3분할 레이아웃
 # 왼쪽: 알림/상세, 가운데: 지도, 오른쪽: 챗봇
 # =========================================================
@@ -1559,12 +1589,16 @@ with map_col:
             focus_zone_id=focus_zone_id,
         )
 
+        should_animate = bool(st.session_state.animate_zoom and st.session_state.has_query)
+
         render_deck_map_html(
             payload=map_payload,
-            animate=bool(st.session_state.animate_zoom and st.session_state.has_query),
+            animate=should_animate,
             height=MAP_HEIGHT,
         )
 
+        # 이 값을 False로 바꾸더라도 rerun하지 않으므로,
+        # 현재 iframe에 전달된 animate=True는 유지되어 JS 애니메이션이 실행된다.
         if st.session_state.animate_zoom:
             st.session_state.animate_zoom = False
 
@@ -1624,26 +1658,6 @@ with chat_col:
             st.session_state.animate_zoom = True
 
             st.rerun()
-
-
-# =========================================================
-# 챗봇 답변 자동 생성
-# =========================================================
-if st.session_state.messages[-1]["role"] == "user":
-    answer = build_answer(
-        selected_date=selected_date,
-        selected_time=selected_time,
-        selected_label=selected_label,
-        selected_zone_id=selected_zone_id,
-        zone_pred_kwh=zone_pred_kwh,
-        zone_rank=int(zone_rank),
-        n_zones=n_zones,
-        peak_time=peak_time,
-        peak_kwh=peak_kwh,
-        total_day_kwh=total_day_kwh,
-    )
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-    st.rerun()
 
 
 # =========================================================
