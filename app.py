@@ -931,15 +931,42 @@ def prepare_map_gdf(
     return gdf
 
 
+def get_zone_view(gdf: gpd.GeoDataFrame, zone_id: Optional[str], use_3d_column: bool) -> dict:
+    if zone_id:
+        focus = gdf[gdf["ID"] == zone_id]
+    else:
+        focus = pd.DataFrame()
+
+    if not focus.empty:
+        return {
+            "latitude": float(focus["lat"].iloc[0]),
+            "longitude": float(focus["lon"].iloc[0]),
+            "zoom": 12.0,
+            "pitch": 42 if use_3d_column else 0,
+            "bearing": 0,
+        }
+
+    return {
+        "latitude": 37.5665,
+        "longitude": 126.9780,
+        "zoom": 10.05,
+        "pitch": 42 if use_3d_column else 0,
+        "bearing": 0,
+    }
+
+
 def prepare_map_payload(
     map_gdf: gpd.GeoDataFrame,
     use_3d_column: bool,
     focus_zone_id: Optional[str],
+    previous_focus_zone_id: Optional[str],
 ) -> dict:
     gdf = map_gdf.copy()
 
     vmin = float(gdf["predicted_kwh"].quantile(0.05))
     vmax = float(gdf["predicted_kwh"].quantile(0.95))
+    max_kwh = float(gdf["predicted_kwh"].max()) if len(gdf) else 1.0
+    max_kwh = max(max_kwh, 1.0)
 
     gdf["fill_color"] = gdf.apply(
         lambda row: [255, 130, 80, 220]
@@ -964,17 +991,31 @@ def prepare_map_payload(
 
     columns_df = pd.DataFrame(gdf.drop(columns="geometry")).copy()
     columns_df["fill_color"] = columns_df.apply(
-        lambda row: [255, 90, 70, 240]
+        lambda row: [255, 90, 70, 235]
         if bool(row.get("is_focus", False))
         else row["fill_color"],
         axis=1,
     )
-    columns_df["elevation"] = columns_df.apply(
-        lambda row: float(row["predicted_kwh"]) * 110
-        if bool(row.get("is_focus", False))
-        else float(row["predicted_kwh"]) * 70,
-        axis=1,
-    )
+
+    # -----------------------------------------------------
+    # 3D 원기둥 높이 개선
+    # 기존: predicted_kwh * 70~110
+    # 개선: predicted_kwh / max_kwh 정규화 후 sqrt 스케일
+    # 효과: 1위 수요가 과도하게 높아져 화면 밖으로 튀는 현상 완화
+    # -----------------------------------------------------
+    def calc_elevation(row) -> float:
+        value = float(row["predicted_kwh"]) if pd.notna(row["predicted_kwh"]) else 0.0
+        ratio = np.sqrt(np.clip(value / max_kwh, 0.0, 1.0))
+
+        base_height = 220.0
+        scaled_height = 2450.0 * ratio
+
+        if bool(row.get("is_focus", False)):
+            scaled_height += 450.0
+
+        return float(np.clip(base_height + scaled_height, 220.0, 3100.0))
+
+    columns_df["elevation"] = columns_df.apply(calc_elevation, axis=1)
 
     columns = columns_df[
         [
@@ -990,26 +1031,7 @@ def prepare_map_payload(
         ]
     ].to_dict(orient="records")
 
-    focus = gdf[gdf["ID"] == focus_zone_id] if focus_zone_id else pd.DataFrame()
-
-    if not focus.empty:
-        target_view = {
-            "latitude": float(focus["lat"].iloc[0]),
-            "longitude": float(focus["lon"].iloc[0]),
-            "zoom": 12.0,
-            "pitch": 42 if use_3d_column else 0,
-            "bearing": 0,
-        }
-    else:
-        target_view = {
-            "latitude": 37.5665,
-            "longitude": 126.9780,
-            "zoom": 10.05,
-            "pitch": 42 if use_3d_column else 0,
-            "bearing": 0,
-        }
-
-    start_view = {
+    overview_view = {
         "latitude": 37.5665,
         "longitude": 126.9780,
         "zoom": 10.05,
@@ -1017,13 +1039,34 @@ def prepare_map_payload(
         "bearing": 0,
     }
 
+    previous_view = get_zone_view(
+        gdf=gdf,
+        zone_id=previous_focus_zone_id,
+        use_3d_column=use_3d_column,
+    )
+
+    target_view = get_zone_view(
+        gdf=gdf,
+        zone_id=focus_zone_id,
+        use_3d_column=use_3d_column,
+    )
+
+    has_focus = bool(focus_zone_id and not gdf[gdf["ID"] == focus_zone_id].empty)
+    has_previous_focus = bool(
+        previous_focus_zone_id
+        and previous_focus_zone_id != focus_zone_id
+        and not gdf[gdf["ID"] == previous_focus_zone_id].empty
+    )
+
     return {
         "geojson": geojson,
         "columns": columns,
-        "start_view": start_view,
+        "overview_view": overview_view,
+        "previous_view": previous_view,
         "target_view": target_view,
         "use_3d_column": bool(use_3d_column),
-        "has_focus": bool(focus_zone_id and not focus.empty),
+        "has_focus": has_focus,
+        "has_previous_focus": has_previous_focus,
     }
 
 
@@ -1076,10 +1119,12 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 
             const geojsonData = payload.geojson;
             const columnData = payload.columns;
-            const startView = payload.start_view;
+            const overviewView = payload.overview_view;
+            const previousView = payload.previous_view;
             const targetView = payload.target_view;
             const use3d = payload.use_3d_column;
             const hasFocus = payload.has_focus;
+            const hasPreviousFocus = payload.has_previous_focus;
 
             function smootherstep(t) {{
                 return t * t * t * (t * (t * 6 - 15) + 10);
@@ -1121,7 +1166,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                     id: "living-area-columns",
                     data: columnData,
                     diskResolution: 32,
-                    radius: 330,
+                    radius: 260,
                     extruded: true,
                     pickable: true,
                     getPosition: d => [d.lon, d.lat],
@@ -1140,7 +1185,19 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 return base;
             }}
 
-            let currentView = shouldAnimate && hasFocus ? startView : targetView;
+            let initialView;
+
+            if (shouldAnimate && hasFocus && hasPreviousFocus) {{
+                initialView = previousView;
+            }} else if (shouldAnimate && hasFocus) {{
+                initialView = overviewView;
+            }} else if (hasFocus) {{
+                initialView = targetView;
+            }} else {{
+                initialView = overviewView;
+            }}
+
+            let currentView = initialView;
 
             const deckgl = new deck.DeckGL({{
                 container: "map",
@@ -1174,24 +1231,14 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 }}
             }});
 
-            if (shouldAnimate && hasFocus) {{
-                const duration = 2200;
-                const delay = 250;
-                const animationStartView = startView;
-                const animationTargetView = targetView;
-
-                deckgl.setProps({{
-                    viewState: animationStartView,
-                    layers: makeLayers()
-                }});
-
-                window.setTimeout(() => {{
+            function animateBetween(startView, endView, duration) {{
+                return new Promise(resolve => {{
                     const startTime = performance.now();
 
-                    function animateFrame(now) {{
+                    function step(now) {{
                         const raw = (now - startTime) / duration;
                         const t = Math.min(Math.max(raw, 0), 1);
-                        const nextView = makeView(animationStartView, animationTargetView, t);
+                        const nextView = makeView(startView, endView, t);
 
                         deckgl.setProps({{
                             viewState: nextView,
@@ -1199,18 +1246,39 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                         }});
 
                         if (t < 1) {{
-                            requestAnimationFrame(animateFrame);
+                            requestAnimationFrame(step);
                         }} else {{
                             deckgl.setProps({{
-                                viewState: animationTargetView,
+                                viewState: endView,
                                 layers: makeLayers()
                             }});
+                            resolve();
                         }}
                     }}
 
-                    requestAnimationFrame(animateFrame);
-                }}, delay);
+                    requestAnimationFrame(step);
+                }});
             }}
+
+            async function runAnimation() {{
+                if (!(shouldAnimate && hasFocus)) return;
+
+                await new Promise(resolve => setTimeout(resolve, 220));
+
+                if (hasPreviousFocus) {{
+                    // 두 번째 질문부터:
+                    // 기존 확대 위치 → 서울 전체 → 새 위치
+                    await animateBetween(previousView, overviewView, 1050);
+                    await new Promise(resolve => setTimeout(resolve, 120));
+                    await animateBetween(overviewView, targetView, 1250);
+                }} else {{
+                    // 첫 질문:
+                    // 서울 전체 → 선택 위치
+                    await animateBetween(overviewView, targetView, 2200);
+                }}
+            }}
+
+            runAnimation();
         </script>
     </body>
     </html>
@@ -1372,6 +1440,9 @@ zone_candidates = area_info[area_info["생활권역ID"].isin(meta["zone_ids"])].
 if "selected_zone_id" not in st.session_state:
     st.session_state.selected_zone_id = zone_candidates["생활권역ID"].iloc[0]
 
+if "previous_focus_zone_id" not in st.session_state:
+    st.session_state.previous_focus_zone_id = None
+
 if "use_3d_column" not in st.session_state:
     st.session_state.use_3d_column = False
 
@@ -1401,6 +1472,7 @@ if "messages" not in st.session_state:
 selected_date = st.session_state.selected_date
 selected_time = st.session_state.selected_time
 selected_zone_id = st.session_state.selected_zone_id
+previous_focus_zone_id = st.session_state.previous_focus_zone_id
 
 pred_filtered = pred[
     (pred["date_str"] == selected_date)
@@ -1477,9 +1549,6 @@ map_gdf = prepare_map_gdf(
 
 # =========================================================
 # 챗봇 답변 생성
-# 중요:
-# 여기서 답변을 생성하되 st.rerun()을 호출하지 않는다.
-# 그래야 지도 애니메이션이 중간에 끊기지 않고 실제로 실행된다.
 # =========================================================
 if st.session_state.messages[-1]["role"] == "user":
     answer = build_answer(
@@ -1587,6 +1656,7 @@ with map_col:
             map_gdf=map_gdf,
             use_3d_column=st.session_state.use_3d_column,
             focus_zone_id=focus_zone_id,
+            previous_focus_zone_id=previous_focus_zone_id,
         )
 
         should_animate = bool(st.session_state.animate_zoom and st.session_state.has_query)
@@ -1597,8 +1667,6 @@ with map_col:
             height=MAP_HEIGHT,
         )
 
-        # 이 값을 False로 바꾸더라도 rerun하지 않으므로,
-        # 현재 iframe에 전달된 animate=True는 유지되어 JS 애니메이션이 실행된다.
         if st.session_state.animate_zoom:
             st.session_state.animate_zoom = False
 
@@ -1651,6 +1719,12 @@ with chat_col:
                 fallback_zone_id=st.session_state.selected_zone_id,
             )
 
+            # 두 번째 질문부터 기존 위치에서 전체 화면으로 축소 후 새 위치로 확대하기 위해 저장
+            if st.session_state.has_query:
+                st.session_state.previous_focus_zone_id = st.session_state.selected_zone_id
+            else:
+                st.session_state.previous_focus_zone_id = None
+
             st.session_state.selected_date = parsed["date"]
             st.session_state.selected_time = parsed["time"]
             st.session_state.selected_zone_id = parsed["zone_id"]
@@ -1680,7 +1754,13 @@ with st.expander("데이터 해석 안내"):
         → 왼쪽 패널에 선택 생활권 상세 정보 표시
         ```
 
-        현재 자연어 해석은 규칙 기반으로 구현되어 있으며, 추후 OpenAI API 또는 별도 LLM API를 연결할 수 있습니다.
+        두 번째 질문부터는 이전 생활권 확대 화면에서 바로 새 생활권으로 이동하지 않고,
+        서울 전체 화면으로 자연스럽게 축소된 뒤 새 생활권으로 확대됩니다.
+
+        ### 3D 원기둥 높이
+
+        3D 막대는 예측값을 그대로 선형 배율로 표시하지 않고, 전체 예측값 대비 정규화 후 완만한 제곱근 스케일로 표현합니다.  
+        따라서 수요가 큰 생활권도 화면을 과도하게 벗어나지 않도록 조정됩니다.
 
         ### 시간 인덱스
 
