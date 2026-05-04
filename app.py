@@ -32,9 +32,12 @@ TIME_UNIT_MINUTES = 30
 DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
-PANEL_HEIGHT = 760
-MAP_HEIGHT = 620
-CHAT_SCROLL_HEIGHT = 405
+# =========================================================
+# Framer iframe 1440 × 730 대응 높이
+# =========================================================
+PANEL_HEIGHT = 625
+MAP_HEIGHT = 485
+CHAT_SCROLL_HEIGHT = 275
 
 
 # =========================================================
@@ -64,9 +67,9 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 0.7rem;
-        padding-bottom: 1.5rem;
-        max-width: 1720px;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+        max-width: 1440px;
     }
 
     header[data-testid="stHeader"] {
@@ -89,72 +92,72 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlock"] {
-        gap: 0.56rem;
+        gap: 0.42rem;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF;
-        border-radius: 24px;
+        border-radius: 22px;
         box-shadow: 0 10px 30px rgba(35, 55, 80, 0.07);
         border: 1px solid rgba(220, 228, 238, 0.95);
     }
 
     .panel-title {
         color: #202532;
-        font-size: 23px;
+        font-size: 21px;
         font-weight: 900;
         letter-spacing: -0.045em;
         margin-bottom: 2px;
-        line-height: 1.2;
+        line-height: 1.18;
     }
 
     .panel-subtitle {
         color: #7C8594;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 650;
-        margin-bottom: 8px;
-        line-height: 1.35;
+        margin-bottom: 6px;
+        line-height: 1.34;
     }
 
     .chat-guide-compact {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
-        border-radius: 16px;
-        padding: 10px 12px;
+        border-radius: 15px;
+        padding: 8px 10px;
         color: #5E6878;
-        font-size: 12px;
-        line-height: 1.35;
+        font-size: 11.5px;
+        line-height: 1.32;
         font-weight: 650;
-        margin-bottom: 8px;
+        margin-bottom: 7px;
     }
 
     .status-pill {
         display: inline-flex;
         border-radius: 999px;
-        padding: 4px 9px;
+        padding: 3px 8px;
         background: #EAF2FF;
         color: #1F6FE5;
-        font-size: 11px;
+        font-size: 10.5px;
         font-weight: 900;
-        margin-bottom: 6px;
+        margin-bottom: 5px;
     }
 
     .chat-example-row {
         display: flex;
         flex-direction: column;
-        gap: 5px;
-        margin-top: 7px;
+        gap: 4px;
+        margin-top: 6px;
     }
 
     .chat-example-small {
         background: #FFFFFF;
         border: 1px solid #E6EDF6;
-        border-radius: 11px;
-        padding: 6px 8px;
+        border-radius: 10px;
+        padding: 5px 7px;
         color: #2F3747;
-        font-size: 11px;
+        font-size: 10.5px;
         font-weight: 800;
-        line-height: 1.3;
+        line-height: 1.25;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -163,15 +166,15 @@ st.markdown(
     .legend-wrap {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-top: 8px;
+        gap: 9px;
+        margin-top: 6px;
         color: #788395;
         font-weight: 800;
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .legend-bar {
-        height: 10px;
+        height: 9px;
         flex: 1;
         border-radius: 999px;
         background: linear-gradient(90deg, #D9E9FF, #76A8FF, #2E5BEA, #20145C);
@@ -180,38 +183,38 @@ st.markdown(
     .alert-card {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
-        border-radius: 18px;
-        padding: 15px 16px;
-        margin-bottom: 12px;
+        border-radius: 16px;
+        padding: 12px 14px;
+        margin-bottom: 9px;
     }
 
     .alert-top {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
+        gap: 10px;
     }
 
     .alert-title {
         color: #222633;
-        font-size: 15px;
+        font-size: 13.5px;
         font-weight: 900;
-        line-height: 1.35;
-        margin-bottom: 6px;
+        line-height: 1.32;
+        margin-bottom: 5px;
     }
 
     .alert-meta {
         color: #7C8594;
-        font-size: 12px;
+        font-size: 11.5px;
         font-weight: 700;
-        line-height: 1.45;
+        line-height: 1.38;
     }
 
     .alert-value {
         color: #222633;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 900;
-        margin-top: 7px;
+        margin-top: 6px;
     }
 
     .alert-badge {
@@ -219,8 +222,8 @@ st.markdown(
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        padding: 5px 10px;
-        font-size: 11px;
+        padding: 4px 8px;
+        font-size: 10px;
         font-weight: 900;
         color: #FFFFFF;
         background: #2E6BEA;
@@ -243,35 +246,39 @@ st.markdown(
         background: #FFFFFF;
         border: 1px solid #E8EEF5;
         border-radius: 16px;
-        padding: 12px 14px;
-        min-height: 95px;
+        padding: 10px 12px;
+        min-height: 82px;
         box-shadow: 0 6px 18px rgba(35, 55, 80, 0.045);
     }
 
     div[data-testid="stMetricLabel"] {
         color: #8A93A3;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 850;
     }
 
     div[data-testid="stMetricValue"] {
         color: #202532;
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 900;
         letter-spacing: -0.04em;
+    }
+
+    div[data-testid="stMetricDelta"] {
+        font-size: 11px;
     }
 
     .detail-box {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
-        border-radius: 18px;
-        padding: 16px 16px;
-        margin-bottom: 12px;
+        border-radius: 16px;
+        padding: 13px 14px;
+        margin-bottom: 9px;
     }
 
     .detail-title {
         color: #202532;
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 900;
         letter-spacing: -0.045em;
         margin-bottom: 4px;
@@ -279,35 +286,35 @@ st.markdown(
 
     .detail-id {
         color: #2E8B55;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 900;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
 
     .detail-label {
         color: #8A93A3;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 900;
-        margin-top: 10px;
-        margin-bottom: 4px;
+        margin-top: 8px;
+        margin-bottom: 3px;
     }
 
     .detail-text {
         color: #4F5A6A;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
-        line-height: 1.5;
+        line-height: 1.42;
     }
 
     .small-info {
         color: #7C8594;
-        font-size: 12px;
+        font-size: 11.5px;
         font-weight: 700;
-        line-height: 1.5;
+        line-height: 1.45;
     }
 
     iframe {
-        border-radius: 18px;
+        border-radius: 16px;
     }
 
     div[data-testid="stTextInput"] {
@@ -316,7 +323,7 @@ st.markdown(
 
     div[data-testid="stTextInput"] > div {
         background: #FFFFFF !important;
-        border-radius: 16px !important;
+        border-radius: 14px !important;
         border: 1px solid #DCE5F0 !important;
         box-shadow: 0 8px 20px rgba(35, 55, 80, 0.08) !important;
     }
@@ -324,9 +331,9 @@ st.markdown(
     div[data-testid="stTextInput"] input {
         background: #FFFFFF !important;
         color: #202532 !important;
-        border-radius: 16px !important;
-        min-height: 46px;
-        font-size: 13px;
+        border-radius: 14px !important;
+        min-height: 40px;
+        font-size: 12px;
         font-weight: 700;
         border: none !important;
     }
@@ -344,8 +351,8 @@ st.markdown(
     }
 
     div[data-testid="stFormSubmitButton"] button {
-        border-radius: 14px;
-        min-height: 44px;
+        border-radius: 13px;
+        min-height: 40px;
         font-weight: 900;
         background: #2E6BEA;
         color: white;
@@ -433,7 +440,7 @@ def render_chat_messages(messages: list[dict]) -> None:
         .chat-scroll-box {{
             height: {CHAT_SCROLL_HEIGHT}px;
             overflow-y: auto;
-            padding: 8px 4px 8px 2px;
+            padding: 7px 4px 7px 2px;
             box-sizing: border-box;
             border-top: 1px solid #EEF2F7;
             border-bottom: 1px solid #EEF2F7;
@@ -441,7 +448,7 @@ def render_chat_messages(messages: list[dict]) -> None:
         }}
 
         .chat-scroll-box::-webkit-scrollbar {{
-            width: 8px;
+            width: 7px;
         }}
 
         .chat-scroll-box::-webkit-scrollbar-thumb {{
@@ -455,7 +462,7 @@ def render_chat_messages(messages: list[dict]) -> None:
 
         .chat-bubble-row {{
             display: flex;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }}
 
         .chat-bubble-row.user {{
@@ -468,11 +475,11 @@ def render_chat_messages(messages: list[dict]) -> None:
 
         .chat-bubble {{
             max-width: 88%;
-            border-radius: 16px;
-            padding: 11px 13px;
-            font-size: 13px;
+            border-radius: 15px;
+            padding: 9px 11px;
+            font-size: 12px;
             font-weight: 700;
-            line-height: 1.55;
+            line-height: 1.48;
             word-break: keep-all;
             box-sizing: border-box;
         }}
@@ -997,12 +1004,6 @@ def prepare_map_payload(
         axis=1,
     )
 
-    # -----------------------------------------------------
-    # 3D 원기둥 높이 개선
-    # 기존: predicted_kwh * 70~110
-    # 개선: predicted_kwh / max_kwh 정규화 후 sqrt 스케일
-    # 효과: 1위 수요가 과도하게 높아져 화면 밖으로 튀는 현상 완화
-    # -----------------------------------------------------
     def calc_elevation(row) -> float:
         value = float(row["predicted_kwh"]) if pd.notna(row["predicted_kwh"]) else 0.0
         ratio = np.sqrt(np.clip(value / max_kwh, 0.0, 1.0))
@@ -1096,7 +1097,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 position: relative;
                 width: 100%;
                 height: {height}px;
-                border-radius: 18px;
+                border-radius: 16px;
                 overflow: hidden;
                 background: #F8FAFD;
             }}
@@ -1266,14 +1267,10 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 await new Promise(resolve => setTimeout(resolve, 220));
 
                 if (hasPreviousFocus) {{
-                    // 두 번째 질문부터:
-                    // 기존 확대 위치 → 서울 전체 → 새 위치
                     await animateBetween(previousView, overviewView, 1050);
                     await new Promise(resolve => setTimeout(resolve, 120));
                     await animateBetween(overviewView, targetView, 1250);
                 }} else {{
-                    // 첫 질문:
-                    // 서울 전체 → 선택 위치
                     await animateBetween(overviewView, targetView, 2200);
                 }}
             }}
@@ -1719,7 +1716,6 @@ with chat_col:
                 fallback_zone_id=st.session_state.selected_zone_id,
             )
 
-            # 두 번째 질문부터 기존 위치에서 전체 화면으로 축소 후 새 위치로 확대하기 위해 저장
             if st.session_state.has_query:
                 st.session_state.previous_focus_zone_id = st.session_state.selected_zone_id
             else:
