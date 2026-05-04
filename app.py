@@ -34,11 +34,12 @@ DEFAULT_TIME = "18:00"
 
 # =========================================================
 # Framer iframe 1440 × 685~730 대응 높이
-# 높이 자체는 유지하고, 내부 콘텐츠 배치만 조정
 # =========================================================
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
-CHAT_SCROLL_HEIGHT = 390
+
+# 챗봇 메시지는 위쪽부터 시작하고, 입력창은 아래쪽에 오도록 조정
+CHAT_SCROLL_HEIGHT = 430
 
 
 # =========================================================
@@ -137,12 +138,18 @@ st.markdown(
         background: linear-gradient(90deg, #D9E9FF, #76A8FF, #2E5BEA, #20145C);
     }
 
+    .alert-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-top: 10px;
+    }
+
     .alert-card {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
         border-radius: 17px;
         padding: 15px 16px;
-        margin-bottom: 13px;
     }
 
     .alert-top {
@@ -205,7 +212,7 @@ st.markdown(
         font-size: 11.5px;
         font-weight: 700;
         line-height: 1.45;
-        margin-top: 8px;
+        margin-top: 13px;
     }
 
     div[data-testid="stMetric"] {
@@ -414,12 +421,6 @@ def render_chat_messages(messages: list[dict]) -> None:
             background: transparent;
         }}
 
-        .chat-scroll-box.short {{
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }}
-
         .chat-scroll-box::-webkit-scrollbar {{
             width: 7px;
         }}
@@ -477,11 +478,7 @@ def render_chat_messages(messages: list[dict]) -> None:
         </div>
         <script>
             const box = document.getElementById("chatbox");
-            if (box.scrollHeight <= box.clientHeight + 12) {{
-                box.classList.add("short");
-            }} else {{
-                box.scrollTop = box.scrollHeight;
-            }}
+            box.scrollTop = box.scrollHeight;
         </script>
     </body>
     </html>
@@ -1270,7 +1267,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         return
 
     alert_rows = top_df.head(4).copy()
-    cards_html = ""
+    cards_html = '<div class="alert-stack">'
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -1309,6 +1306,8 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
             </div>
         </div>
         """
+
+    cards_html += "</div>"
 
     st.markdown(cards_html, unsafe_allow_html=True)
 
