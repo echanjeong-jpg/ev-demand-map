@@ -33,7 +33,8 @@ DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
 # =========================================================
-# Framer iframe 1440 × 730 대응 높이
+# Framer iframe 1440 × 685~730 대응 높이
+# 높이 자체는 유지하고, 내부 콘텐츠 배치만 조정
 # =========================================================
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
@@ -115,7 +116,7 @@ st.markdown(
         color: #7C8594;
         font-size: 12px;
         font-weight: 650;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
         line-height: 1.34;
     }
 
@@ -123,7 +124,7 @@ st.markdown(
         display: flex;
         align-items: center;
         gap: 9px;
-        margin-top: 6px;
+        margin-top: 8px;
         color: #788395;
         font-weight: 800;
         font-size: 12px;
@@ -139,9 +140,9 @@ st.markdown(
     .alert-card {
         background: #F8FAFD;
         border: 1px solid #E3EAF3;
-        border-radius: 16px;
-        padding: 12px 14px;
-        margin-bottom: 9px;
+        border-radius: 17px;
+        padding: 15px 16px;
+        margin-bottom: 13px;
     }
 
     .alert-top {
@@ -153,24 +154,24 @@ st.markdown(
 
     .alert-title {
         color: #222633;
-        font-size: 13.5px;
+        font-size: 13.8px;
         font-weight: 900;
-        line-height: 1.32;
-        margin-bottom: 5px;
+        line-height: 1.35;
+        margin-bottom: 6px;
     }
 
     .alert-meta {
         color: #7C8594;
-        font-size: 11.5px;
+        font-size: 11.7px;
         font-weight: 700;
-        line-height: 1.38;
+        line-height: 1.45;
     }
 
     .alert-value {
         color: #222633;
-        font-size: 12px;
+        font-size: 12.2px;
         font-weight: 900;
-        margin-top: 6px;
+        margin-top: 7px;
     }
 
     .alert-badge {
@@ -184,6 +185,7 @@ st.markdown(
         color: #FFFFFF;
         background: #2E6BEA;
         white-space: nowrap;
+        margin-top: 1px;
     }
 
     .alert-badge.hot {
@@ -196,6 +198,14 @@ st.markdown(
 
     .alert-badge.monitor {
         background: #64748B;
+    }
+
+    .panel-bottom-copy {
+        color: #7C8594;
+        font-size: 11.5px;
+        font-weight: 700;
+        line-height: 1.45;
+        margin-top: 8px;
     }
 
     div[data-testid="stMetric"] {
@@ -267,6 +277,7 @@ st.markdown(
         font-size: 11.5px;
         font-weight: 700;
         line-height: 1.45;
+        margin-top: 8px;
     }
 
     iframe {
@@ -396,11 +407,17 @@ def render_chat_messages(messages: list[dict]) -> None:
         .chat-scroll-box {{
             height: {CHAT_SCROLL_HEIGHT}px;
             overflow-y: auto;
-            padding: 7px 4px 7px 2px;
+            padding: 8px 4px 8px 2px;
             box-sizing: border-box;
             border-top: 1px solid #EEF2F7;
             border-bottom: 1px solid #EEF2F7;
             background: transparent;
+        }}
+
+        .chat-scroll-box.short {{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }}
 
         .chat-scroll-box::-webkit-scrollbar {{
@@ -432,10 +449,10 @@ def render_chat_messages(messages: list[dict]) -> None:
         .chat-bubble {{
             max-width: 88%;
             border-radius: 15px;
-            padding: 9px 11px;
+            padding: 10px 12px;
             font-size: 12px;
             font-weight: 700;
-            line-height: 1.48;
+            line-height: 1.52;
             word-break: keep-all;
             box-sizing: border-box;
         }}
@@ -460,7 +477,11 @@ def render_chat_messages(messages: list[dict]) -> None:
         </div>
         <script>
             const box = document.getElementById("chatbox");
-            box.scrollTop = box.scrollHeight;
+            if (box.scrollHeight <= box.clientHeight + 12) {{
+                box.classList.add("short");
+            }} else {{
+                box.scrollTop = box.scrollHeight;
+            }}
         </script>
     </body>
     </html>
@@ -1570,7 +1591,7 @@ with alert_col:
 
             st.markdown(
                 """
-                <div class="small-info">
+                <div class="panel-bottom-copy">
                 챗봇에 날짜, 시간, 위치를 입력하면 이 영역은 선택 생활권 상세 정보로 전환됩니다.
                 </div>
                 """,
