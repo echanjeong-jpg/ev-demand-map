@@ -37,7 +37,7 @@ DEFAULT_TIME = "18:00"
 # =========================================================
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
-CHAT_SCROLL_HEIGHT = 275
+CHAT_SCROLL_HEIGHT = 390
 
 
 # =========================================================
@@ -117,50 +117,6 @@ st.markdown(
         font-weight: 650;
         margin-bottom: 6px;
         line-height: 1.34;
-    }
-
-    .chat-guide-compact {
-        background: #F8FAFD;
-        border: 1px solid #E3EAF3;
-        border-radius: 15px;
-        padding: 8px 10px;
-        color: #5E6878;
-        font-size: 11.5px;
-        line-height: 1.32;
-        font-weight: 650;
-        margin-bottom: 7px;
-    }
-
-    .status-pill {
-        display: inline-flex;
-        border-radius: 999px;
-        padding: 3px 8px;
-        background: #EAF2FF;
-        color: #1F6FE5;
-        font-size: 10.5px;
-        font-weight: 900;
-        margin-bottom: 5px;
-    }
-
-    .chat-example-row {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        margin-top: 6px;
-    }
-
-    .chat-example-small {
-        background: #FFFFFF;
-        border: 1px solid #E6EDF6;
-        border-radius: 10px;
-        padding: 5px 7px;
-        color: #2F3747;
-        font-size: 10.5px;
-        font-weight: 800;
-        line-height: 1.25;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     .legend-wrap {
@@ -1678,20 +1634,6 @@ with chat_col:
         panel_title(
             "챗봇 LLM",
             "자연어로 날짜, 시간, 위치를 입력하세요.",
-        )
-
-        st.markdown(
-            """
-            <div class="chat-guide-compact">
-                <div class="status-pill">자연어 질의</div>
-                <div>질문을 입력하면 날짜·시간·위치를 해석하고, 가운데 지도와 왼쪽 패널을 갱신합니다.</div>
-                <div class="chat-example-row">
-                    <div class="chat-example-small">2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘</div>
-                    <div class="chat-example-small">11월 25일 18시에 마포구 성산생활권 알려줘</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
         )
 
         render_chat_messages(st.session_state.messages)
