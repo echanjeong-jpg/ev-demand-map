@@ -1262,12 +1262,17 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 # 표시 함수
 # =========================================================
 def draw_alerts(top_df: pd.DataFrame, selected_time: str):
+    """
+    수요 급증 알림 렌더링.
+    st.markdown에서 HTML이 문자 그대로 출력되는 문제를 피하기 위해
+    components.html로 별도 렌더링한다.
+    """
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
     alert_rows = top_df.head(4).copy()
-    cards_html = '<div class="alert-stack">'
+    cards_html = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -1280,7 +1285,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
             guide = "충전기 가용 상태와 대기 가능성을 우선 확인하세요."
         elif i == 2:
             badge = "집중권역"
-            badge_class = ""
+            badge_class = "focus"
             message = f"{label} — 충전 수요 집중 권역"
             guide = "인근 생활권과의 수요 분산 가능성을 확인하세요."
         elif i == 3:
@@ -1297,7 +1302,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         cards_html += f"""
         <div class="alert-card">
             <div class="alert-top">
-                <div>
+                <div class="alert-text-wrap">
                     <div class="alert-title">{message}</div>
                     <div class="alert-meta">{guide}</div>
                     <div class="alert-value">예측 {value:,.1f} kWh · {selected_time}</div>
@@ -1307,9 +1312,113 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         </div>
         """
 
-    cards_html += "</div>"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8" />
+    <style>
+        html, body {{
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        }}
 
-    st.markdown(cards_html, unsafe_allow_html=True)
+        .alert-panel-inner {{
+            height: 500px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px 0 8px 0;
+        }}
+
+        .alert-card {{
+            background: #F8FAFD;
+            border: 1px solid #E3EAF3;
+            border-radius: 17px;
+            padding: 15px 16px;
+            box-sizing: border-box;
+        }}
+
+        .alert-top {{
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }}
+
+        .alert-text-wrap {{
+            min-width: 0;
+            flex: 1;
+        }}
+
+        .alert-title {{
+            color: #222633;
+            font-size: 13.8px;
+            font-weight: 900;
+            line-height: 1.35;
+            margin-bottom: 6px;
+            word-break: keep-all;
+        }}
+
+        .alert-meta {{
+            color: #7C8594;
+            font-size: 11.7px;
+            font-weight: 700;
+            line-height: 1.45;
+            word-break: keep-all;
+        }}
+
+        .alert-value {{
+            color: #222633;
+            font-size: 12.2px;
+            font-weight: 900;
+            margin-top: 7px;
+        }}
+
+        .alert-badge {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 4px 8px;
+            font-size: 10px;
+            font-weight: 900;
+            color: #FFFFFF;
+            background: #2E6BEA;
+            white-space: nowrap;
+            margin-top: 1px;
+            flex-shrink: 0;
+        }}
+
+        .alert-badge.hot {{
+            background: #E74C5B;
+        }}
+
+        .alert-badge.focus {{
+            background: #2E6BEA;
+        }}
+
+        .alert-badge.watch {{
+            background: #F59E0B;
+        }}
+
+        .alert-badge.monitor {{
+            background: #64748B;
+        }}
+    </style>
+    </head>
+    <body>
+        <div class="alert-panel-inner">
+            {cards_html}
+        </div>
+    </body>
+    </html>
+    """
+
+    components.html(html, height=508, scrolling=False)
 
 
 def draw_selected_detail_native(
@@ -1587,15 +1696,6 @@ with alert_col:
             )
 
             draw_alerts(top10, selected_time)
-
-            st.markdown(
-                """
-                <div class="panel-bottom-copy">
-                챗봇에 날짜, 시간, 위치를 입력하면 이 영역은 선택 생활권 상세 정보로 전환됩니다.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
 
 # =========================================================
