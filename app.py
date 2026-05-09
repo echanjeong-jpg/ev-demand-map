@@ -14,9 +14,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 try:
-    from openai import OpenAI
+    from google import genai
 except Exception:
-    OpenAI = None
+    genai = None
 
 
 # =========================================================
@@ -38,10 +38,12 @@ TIME_UNIT_MINUTES = 30
 DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
+# Framer iframe 1440 × 685~730 대응
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
 CHAT_SCROLL_HEIGHT = 430
 
+# 서울시 전체 생활권이 기본 화면에 더 잘 들어오도록 조정
 OVERVIEW_LATITUDE = 37.5555
 OVERVIEW_LONGITUDE = 126.9860
 OVERVIEW_ZOOM = 9.45
@@ -587,56 +589,68 @@ def safe_json_loads(text: str) -> dict:
     return {}
 
 
-def get_openai_client() -> Optional[Any]:
-    if OpenAI is None:
+# =========================================================
+# Gemini API 함수
+# =========================================================
+def get_gemini_client() -> Optional[Any]:
+    if genai is None:
         return None
 
     api_key = None
 
     try:
-        api_key = st.secrets.get("OPENAI_API_KEY", None)
+        api_key = st.secrets.get("GEMINI_API_KEY", None)
     except Exception:
         api_key = None
 
     if not api_key:
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = os.environ.get("GEMINI_API_KEY")
 
     if not api_key:
         return None
 
-    return OpenAI(api_key=api_key)
-
-
-def get_openai_model() -> str:
     try:
-        return st.secrets.get("OPENAI_MODEL", "gpt-5.5")
+        return genai.Client(api_key=api_key)
+    except Exception as e:
+        st.session_state.last_llm_error = str(e)
+        return None
+
+
+def get_gemini_model() -> str:
+    try:
+        return st.secrets.get("GEMINI_MODEL", "gemini-1.5-flash")
     except Exception:
-        return os.environ.get("OPENAI_MODEL", "gpt-5.5")
+        return os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
 
 
-def call_openai_text(system_prompt: str, user_prompt: str, temperature: float = 0.2) -> Optional[str]:
-    client = get_openai_client()
+def call_gemini_text(
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float = 0.2,
+) -> Optional[str]:
+    client = get_gemini_client()
     if client is None:
         return None
 
-    model = get_openai_model()
+    model = get_gemini_model()
+
+    prompt = f"""
+[System]
+{system_prompt}
+
+[User]
+{user_prompt}
+"""
 
     try:
-        response = client.responses.create(
+        response = client.models.generate_content(
             model=model,
-            input=[
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                },
-            ],
-            temperature=temperature,
+            contents=prompt,
+            config={
+                "temperature": temperature,
+            },
         )
-        return getattr(response, "output_text", None)
+        return getattr(response, "text", None)
     except Exception as e:
         st.session_state.last_llm_error = str(e)
         return None
@@ -839,6 +853,7 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
     m = re.search(r"(\d{1,2})\s*:\s*(\d{1,2})", text)
     if m:
         h, mi = map(int, m.groups())
+
         if mi >= 45:
             h += 1
             mi = 0
@@ -891,13 +906,17 @@ def llm_extract_query(
     pred: pd.DataFrame,
     area_info: pd.DataFrame,
 ) -> dict:
+    """
+    Gemini를 이용해 사용자 질의에서 날짜/시간/위치 표현만 추출.
+    API 키가 없거나 실패하면 빈 dict 반환.
+    """
     available_dates = sorted(pred["date_str"].unique())
     min_date = available_dates[0]
     max_date = available_dates[-1]
 
     sample_zones = area_info[
         ["생활권역ID", "생활권역표시명", "행정동명목록"]
-    ].head(40).to_dict(orient="records")
+    ].head(50).to_dict(orient="records")
 
     system_prompt = """
 너는 전기차 충전수요 지도 서비스의 자연어 질의 해석기다.
@@ -914,11 +933,12 @@ def llm_extract_query(
   "intent": "demand_lookup | other"
 }
 
-주의:
+규칙:
 - 날짜가 없으면 null.
 - 시간이 없으면 null.
 - 위치가 없으면 null.
 - 사용자가 충전수요, 예측, 지도, 생활권, 알려줘, 보여줘 등을 말하면 demand_lookup.
+- 임의로 예측값을 만들지 마라.
 """
 
     user_prompt = f"""
@@ -934,7 +954,7 @@ def llm_extract_query(
 JSON만 출력하라.
 """
 
-    llm_text = call_openai_text(system_prompt, user_prompt, temperature=0.0)
+    llm_text = call_gemini_text(system_prompt, user_prompt, temperature=0.0)
     parsed = safe_json_loads(llm_text or "")
 
     return {
@@ -1020,8 +1040,10 @@ def parse_user_query(
 ) -> Dict:
     available_dates = sorted(pred["date_str"].unique())
 
+    # 1차: Gemini로 날짜/시간/위치 표현 추출
     llm_result = llm_extract_query(text, pred, area_info)
 
+    # 2차: 추출된 표현을 기존 규칙 기반 파서로 실제 데이터 범위에 맞게 변환
     date_source = llm_result.get("date_text") or text
     parsed_date = parse_date_from_text(str(date_source), available_dates)
 
@@ -1751,7 +1773,7 @@ facts:
 위 facts만 사용해서 자연어로 답변하라.
 """
 
-    llm_answer = call_openai_text(system_prompt, user_prompt, temperature=0.25)
+    llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.25)
 
     if llm_answer:
         return llm_answer.strip()
@@ -1948,6 +1970,7 @@ if st.session_state.pending_user_query:
 
 # =========================================================
 # 메인 3분할 레이아웃
+# 왼쪽: 알림/상세, 가운데: 지도, 오른쪽: 모도리
 # =========================================================
 alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
