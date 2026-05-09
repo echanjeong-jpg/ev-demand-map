@@ -8,4 +8,4 @@ openpyxl
 shapely
 fiona
 pyproj
-openai
+google-genai
