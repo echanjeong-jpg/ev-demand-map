@@ -2,15 +2,21 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Any
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 import streamlit as st
 import streamlit.components.v1 as components
+
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None
 
 
 # =========================================================
@@ -32,14 +38,10 @@ TIME_UNIT_MINUTES = 30
 DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
-# =========================================================
-# Framer iframe 1440 × 685~730 대응 높이
-# =========================================================
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
 CHAT_SCROLL_HEIGHT = 430
 
-# 서울시 전체 생활권이 기본 화면에 더 잘 들어오도록 조정
 OVERVIEW_LATITUDE = 37.5555
 OVERVIEW_LONGITUDE = 126.9860
 OVERVIEW_ZOOM = 9.45
@@ -67,11 +69,6 @@ st.markdown(
         font-family: 'Inter', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     }
 
-    /*
-    화성특례시 교통정보센터처럼 흰색 기반의 관제형 화면으로 조정.
-    Framer 상단 네비게이션의 완전한 흰색과 구분되도록
-    아주 약한 그레이 톤과 그림자만 적용.
-    */
     .stApp {
         background:
             linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 48%, #F7F9FC 100%) !important;
@@ -565,6 +562,86 @@ def kwh_to_color(value: float, vmin: float, vmax: float) -> list[int]:
     return [r, g, b, a]
 
 
+def safe_json_loads(text: str) -> dict:
+    if not text:
+        return {}
+
+    raw = text.strip()
+
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?", "", raw).strip()
+        raw = re.sub(r"```$", "", raw).strip()
+
+    try:
+        return json.loads(raw)
+    except Exception:
+        pass
+
+    m = re.search(r"\{.*\}", raw, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            return {}
+
+    return {}
+
+
+def get_openai_client() -> Optional[Any]:
+    if OpenAI is None:
+        return None
+
+    api_key = None
+
+    try:
+        api_key = st.secrets.get("OPENAI_API_KEY", None)
+    except Exception:
+        api_key = None
+
+    if not api_key:
+        api_key = os.environ.get("OPENAI_API_KEY")
+
+    if not api_key:
+        return None
+
+    return OpenAI(api_key=api_key)
+
+
+def get_openai_model() -> str:
+    try:
+        return st.secrets.get("OPENAI_MODEL", "gpt-5.5")
+    except Exception:
+        return os.environ.get("OPENAI_MODEL", "gpt-5.5")
+
+
+def call_openai_text(system_prompt: str, user_prompt: str, temperature: float = 0.2) -> Optional[str]:
+    client = get_openai_client()
+    if client is None:
+        return None
+
+    model = get_openai_model()
+
+    try:
+        response = client.responses.create(
+            model=model,
+            input=[
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt,
+                },
+            ],
+            temperature=temperature,
+        )
+        return getattr(response, "output_text", None)
+    except Exception as e:
+        st.session_state.last_llm_error = str(e)
+        return None
+
+
 def add_datetime_to_predictions(pred: pd.DataFrame, meta: Dict) -> pd.DataFrame:
     val_end = int(meta["val_end"])
     look_back = int(meta["look_back"])
@@ -809,6 +886,66 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
     return None
 
 
+def llm_extract_query(
+    text: str,
+    pred: pd.DataFrame,
+    area_info: pd.DataFrame,
+) -> dict:
+    available_dates = sorted(pred["date_str"].unique())
+    min_date = available_dates[0]
+    max_date = available_dates[-1]
+
+    sample_zones = area_info[
+        ["생활권역ID", "생활권역표시명", "행정동명목록"]
+    ].head(40).to_dict(orient="records")
+
+    system_prompt = """
+너는 전기차 충전수요 지도 서비스의 자연어 질의 해석기다.
+사용자의 한국어 질의에서 날짜, 시간, 위치 표현을 추출한다.
+
+반드시 JSON만 출력한다.
+설명 문장은 출력하지 않는다.
+
+출력 형식:
+{
+  "date_text": "사용자가 말한 날짜 표현 또는 null",
+  "time_text": "사용자가 말한 시간 표현 또는 null",
+  "location_text": "사용자가 말한 위치/동/구/생활권 표현 또는 null",
+  "intent": "demand_lookup | other"
+}
+
+주의:
+- 날짜가 없으면 null.
+- 시간이 없으면 null.
+- 위치가 없으면 null.
+- 사용자가 충전수요, 예측, 지도, 생활권, 알려줘, 보여줘 등을 말하면 demand_lookup.
+"""
+
+    user_prompt = f"""
+사용자 질의:
+{text}
+
+예측 데이터 날짜 범위:
+{min_date} ~ {max_date}
+
+생활권 예시:
+{json.dumps(sample_zones, ensure_ascii=False)}
+
+JSON만 출력하라.
+"""
+
+    llm_text = call_openai_text(system_prompt, user_prompt, temperature=0.0)
+    parsed = safe_json_loads(llm_text or "")
+
+    return {
+        "date_text": parsed.get("date_text"),
+        "time_text": parsed.get("time_text"),
+        "location_text": parsed.get("location_text"),
+        "intent": parsed.get("intent", "demand_lookup"),
+        "raw": llm_text,
+    }
+
+
 def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
     q = clean_text(text)
 
@@ -829,6 +966,7 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
     for _, row in area_info.iterrows():
         zone_id = row["생활권역ID"]
         label = str(row.get("생활권역표시명", ""))
+        raw_label = str(row.get("생활권역라벨", ""))
         dongs = str(row.get("행정동명목록", ""))
         search_text = str(row.get("search_text_clean", ""))
 
@@ -841,12 +979,17 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
         for part in re.split(r"[,·/\s]+", label):
             part_clean = clean_text(part)
             if len(part_clean) >= 2 and part_clean in q:
-                score += 10
+                score += 14
+
+        for part in re.split(r"[,·/\s()_]+", raw_label):
+            part_clean = clean_text(part)
+            if len(part_clean) >= 2 and part_clean in q:
+                score += 12
 
         for dong in re.split(r"[,·/\s]+", dongs):
             dong_clean = clean_text(dong)
             if len(dong_clean) >= 2 and dong_clean in q:
-                score += 18
+                score += 20
 
         if clean_text(zone_id) in q:
             score += 30
@@ -854,8 +997,8 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
         m = re.search(r"([가-힣]+구)", text)
         if m:
             gu = clean_text(m.group(1))
-            if gu in clean_text(label) or gu in clean_text(dongs):
-                score += 6
+            if gu in clean_text(label) or gu in clean_text(dongs) or gu in clean_text(raw_label):
+                score += 8
 
         if score > best_score:
             best_score = score
@@ -876,17 +1019,43 @@ def parse_user_query(
     fallback_zone_id: str,
 ) -> Dict:
     available_dates = sorted(pred["date_str"].unique())
-    parsed_date = parse_date_from_text(text, available_dates) or fallback_date
+
+    llm_result = llm_extract_query(text, pred, area_info)
+
+    date_source = llm_result.get("date_text") or text
+    parsed_date = parse_date_from_text(str(date_source), available_dates)
+
+    if parsed_date is None:
+        parsed_date = parse_date_from_text(text, available_dates)
+
+    if parsed_date is None:
+        parsed_date = fallback_date
 
     available_times = sorted(pred[pred["date_str"] == parsed_date]["time_str"].unique())
-    parsed_time = parse_time_from_text(text, available_times) or fallback_time
 
-    parsed_zone_id = find_zone_by_location(text, area_info) or fallback_zone_id
+    time_source = llm_result.get("time_text") or text
+    parsed_time = parse_time_from_text(str(time_source), available_times)
+
+    if parsed_time is None:
+        parsed_time = parse_time_from_text(text, available_times)
+
+    if parsed_time is None:
+        parsed_time = fallback_time
+
+    location_source = " ".join(
+        [
+            str(llm_result.get("location_text") or ""),
+            text,
+        ]
+    )
+
+    parsed_zone_id = find_zone_by_location(location_source, area_info) or fallback_zone_id
 
     return {
         "date": parsed_date,
         "time": parsed_time,
         "zone_id": parsed_zone_id,
+        "llm_extract": llm_result,
     }
 
 
@@ -1493,7 +1662,7 @@ def draw_selected_detail_native(
         st.metric("피크 시간", peak_time, f"{peak_kwh:.1f} kWh")
 
 
-def build_answer(
+def build_fallback_answer(
     selected_date: str,
     selected_time: str,
     selected_label: str,
@@ -1514,6 +1683,90 @@ def build_answer(
         f"선택 날짜 총 예측 충전량: {total_day_kwh:.0f} kWh\n"
         f"피크 시간: {peak_time}, 피크 예측값 {peak_kwh:.1f} kWh\n\n"
         f"지도는 해당 생활권으로 확대되며, 왼쪽 패널에 상세 정보를 표시했습니다."
+    )
+
+
+def build_llm_answer(
+    user_text: str,
+    selected_date: str,
+    selected_time: str,
+    selected_label: str,
+    selected_zone_id: str,
+    selected_dongs: str,
+    zone_pred_kwh: float,
+    zone_rank: int,
+    n_zones: int,
+    peak_time: str,
+    peak_kwh: float,
+    total_day_kwh: float,
+    top10: pd.DataFrame,
+) -> str:
+    top_items = []
+    for i, row in enumerate(top10.head(5).itertuples(), start=1):
+        top_items.append(
+            {
+                "rank": i,
+                "zone": getattr(row, "생활권역표시명", getattr(row, "생활권역ID")),
+                "predicted_kwh": round(float(getattr(row, "predicted_kwh")), 1),
+            }
+        )
+
+    facts = {
+        "user_query": user_text,
+        "date": selected_date,
+        "time": selected_time,
+        "zone_label": selected_label,
+        "zone_id": selected_zone_id,
+        "included_dongs": selected_dongs,
+        "predicted_kwh": round(zone_pred_kwh, 1),
+        "rank": int(zone_rank),
+        "num_zones": int(n_zones),
+        "total_day_kwh": round(total_day_kwh, 1),
+        "peak_time": peak_time,
+        "peak_kwh": round(peak_kwh, 1),
+        "top5_at_selected_time": top_items,
+    }
+
+    system_prompt = """
+너는 E-Vlog 서비스의 전기차 충전수요 분석 챗봇 '모도리'다.
+반드시 제공된 facts 데이터만 근거로 답변한다.
+없는 정보는 추측하지 않는다.
+
+답변 스타일:
+- 한국어
+- 사용자가 물어본 날짜, 시간, 위치를 먼저 확인
+- 예측 충전수요, 순위, 일일 총량, 피크시간을 자연스럽게 설명
+- 운영 관점에서 한 문장 조언 포함
+- 너무 길지 않게 5~8문장 정도
+- 수치는 facts에 있는 값 그대로 사용
+"""
+
+    user_prompt = f"""
+사용자 질문:
+{user_text}
+
+facts:
+{json.dumps(facts, ensure_ascii=False, indent=2)}
+
+위 facts만 사용해서 자연어로 답변하라.
+"""
+
+    llm_answer = call_openai_text(system_prompt, user_prompt, temperature=0.25)
+
+    if llm_answer:
+        return llm_answer.strip()
+
+    return build_fallback_answer(
+        selected_date=selected_date,
+        selected_time=selected_time,
+        selected_label=selected_label,
+        selected_zone_id=selected_zone_id,
+        zone_pred_kwh=zone_pred_kwh,
+        zone_rank=zone_rank,
+        n_zones=n_zones,
+        peak_time=peak_time,
+        peak_kwh=peak_kwh,
+        total_day_kwh=total_day_kwh,
     )
 
 
@@ -1560,7 +1813,6 @@ if "selected_zone_id" not in st.session_state:
 if "previous_focus_zone_id" not in st.session_state:
     st.session_state.previous_focus_zone_id = None
 
-# 기본값: 3D 막대 표시 ON
 if "use_3d_column" not in st.session_state:
     st.session_state.use_3d_column = True
 
@@ -1570,6 +1822,12 @@ if "has_query" not in st.session_state:
 if "animate_zoom" not in st.session_state:
     st.session_state.animate_zoom = False
 
+if "pending_user_query" not in st.session_state:
+    st.session_state.pending_user_query = None
+
+if "last_llm_error" not in st.session_state:
+    st.session_state.last_llm_error = None
+
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
@@ -1577,7 +1835,7 @@ if "messages" not in st.session_state:
             "content": (
                 "안녕하세요. 저는 모도리입니다.\n\n"
                 "보고 싶은 날짜, 시간, 위치를 자연어로 입력하면 "
-                "지도에서 해당 생활권을 확대하고 예측 충전수요를 알려드립니다.\n\n"
+                "예측 결과 파일을 조회해 해당 생활권의 충전수요를 알려드립니다.\n\n"
                 "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
             ),
         }
@@ -1666,27 +1924,30 @@ map_gdf = prepare_map_gdf(
 
 
 # =========================================================
-# 챗봇 답변 생성
+# LLM 답변 생성
 # =========================================================
-if st.session_state.messages[-1]["role"] == "user":
-    answer = build_answer(
+if st.session_state.pending_user_query:
+    answer = build_llm_answer(
+        user_text=st.session_state.pending_user_query,
         selected_date=selected_date,
         selected_time=selected_time,
         selected_label=selected_label,
         selected_zone_id=selected_zone_id,
+        selected_dongs=selected_dongs,
         zone_pred_kwh=zone_pred_kwh,
         zone_rank=int(zone_rank),
         n_zones=n_zones,
         peak_time=peak_time,
         peak_kwh=peak_kwh,
         total_day_kwh=total_day_kwh,
+        top10=top10,
     )
     st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.session_state.pending_user_query = None
 
 
 # =========================================================
 # 메인 3분할 레이아웃
-# 왼쪽: 알림/상세, 가운데: 지도, 오른쪽: 모도리
 # =========================================================
 alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
@@ -1805,10 +2066,11 @@ with chat_col:
             submitted = st.form_submit_button("질문하기", use_container_width=True)
 
         if submitted and user_text.strip():
-            st.session_state.messages.append({"role": "user", "content": user_text.strip()})
+            clean_user_text = user_text.strip()
+            st.session_state.messages.append({"role": "user", "content": clean_user_text})
 
             parsed = parse_user_query(
-                text=user_text,
+                text=clean_user_text,
                 pred=pred,
                 area_info=area_info,
                 fallback_date=st.session_state.selected_date,
@@ -1826,5 +2088,6 @@ with chat_col:
             st.session_state.selected_zone_id = parsed["zone_id"]
             st.session_state.has_query = True
             st.session_state.animate_zoom = True
+            st.session_state.pending_user_query = clean_user_text
 
             st.rerun()
