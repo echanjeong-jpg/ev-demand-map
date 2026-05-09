@@ -39,7 +39,7 @@ PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
 CHAT_SCROLL_HEIGHT = 430
 
-# 기본 지도 화면: 서울시 전체 생활권이 더 잘 들어오도록 기존 10.05보다 축소
+# 서울시 전체 생활권이 기본 화면에 더 잘 들어오도록 조정
 OVERVIEW_LATITUDE = 37.5555
 OVERVIEW_LONGITUDE = 126.9860
 OVERVIEW_ZOOM = 9.45
@@ -67,11 +67,19 @@ st.markdown(
         font-family: 'Inter', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     }
 
+    /*
+    화성특례시 교통정보센터와 유사한 관제센터형 색감:
+    - 완전 흰색이 아닌 회청색 배경
+    - 정보 패널은 흰색 카드로 유지
+    - Framer 상단 네비게이션의 흰색과 구분되도록 그림자와 톤 차이 적용
+    */
     .stApp {
         background:
-            radial-gradient(circle at 50% 0%, rgba(31, 120, 180, 0.035), rgba(255,255,255,0) 34%),
-            linear-gradient(180deg, #FAFCFF 0%, #F5F8FC 100%);
-        box-shadow: inset 0 18px 42px rgba(25, 52, 83, 0.055);
+            radial-gradient(circle at 50% -8%, rgba(17, 68, 120, 0.10), rgba(255,255,255,0) 34%),
+            linear-gradient(180deg, #F4F7FA 0%, #EAF0F6 100%) !important;
+        box-shadow:
+            inset 0 18px 42px rgba(15, 45, 80, 0.08),
+            inset 0 -18px 42px rgba(15, 45, 80, 0.035);
     }
 
     .block-container {
@@ -81,7 +89,7 @@ st.markdown(
     }
 
     header[data-testid="stHeader"] {
-        background: rgba(250, 252, 255, 0);
+        background: rgba(244, 247, 250, 0);
         height: 0rem;
     }
 
@@ -104,17 +112,17 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.94);
         border-radius: 22px;
+        border: 1px solid rgba(173, 191, 211, 0.95);
         box-shadow:
-            0 16px 38px rgba(35, 55, 80, 0.075),
+            0 16px 38px rgba(18, 48, 82, 0.105),
             0 1px 0 rgba(255, 255, 255, 0.95) inset;
-        border: 1px solid rgba(218, 227, 238, 0.96);
-        backdrop-filter: blur(6px);
+        backdrop-filter: blur(8px);
     }
 
     .panel-title {
-        color: #202532;
+        color: #172033;
         font-size: 21px;
         font-weight: 900;
         letter-spacing: -0.045em;
@@ -123,9 +131,9 @@ st.markdown(
     }
 
     .panel-subtitle {
-        color: #7C8594;
+        color: #6E7B8D;
         font-size: 12px;
-        font-weight: 650;
+        font-weight: 700;
         margin-bottom: 8px;
         line-height: 1.34;
     }
@@ -135,8 +143,8 @@ st.markdown(
         align-items: center;
         gap: 9px;
         margin-top: 8px;
-        color: #788395;
-        font-weight: 800;
+        color: #677589;
+        font-weight: 850;
         font-size: 12px;
     }
 
@@ -144,7 +152,8 @@ st.markdown(
         height: 9px;
         flex: 1;
         border-radius: 999px;
-        background: linear-gradient(90deg, #D9E9FF, #76A8FF, #2E5BEA, #20145C);
+        background: linear-gradient(90deg, #DDEBFA, #76A8FF, #2E6BEA, #132D6B);
+        box-shadow: 0 4px 12px rgba(34, 93, 180, 0.18);
     }
 
     .alert-stack {
@@ -155,10 +164,11 @@ st.markdown(
     }
 
     .alert-card {
-        background: #F8FAFD;
-        border: 1px solid #E3EAF3;
+        background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFD 100%);
+        border: 1px solid #DDE7F2;
         border-radius: 17px;
         padding: 15px 16px;
+        box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
     }
 
     .alert-top {
@@ -169,7 +179,7 @@ st.markdown(
     }
 
     .alert-title {
-        color: #222633;
+        color: #20283A;
         font-size: 13.8px;
         font-weight: 900;
         line-height: 1.35;
@@ -177,14 +187,14 @@ st.markdown(
     }
 
     .alert-meta {
-        color: #7C8594;
+        color: #6F7C8D;
         font-size: 11.7px;
-        font-weight: 700;
+        font-weight: 750;
         line-height: 1.45;
     }
 
     .alert-value {
-        color: #222633;
+        color: #172033;
         font-size: 12.2px;
         font-weight: 900;
         margin-top: 7px;
@@ -199,40 +209,44 @@ st.markdown(
         font-size: 10px;
         font-weight: 900;
         color: #FFFFFF;
-        background: #2E6BEA;
+        background: #1F6FE5;
         white-space: nowrap;
         margin-top: 1px;
+        box-shadow: 0 6px 14px rgba(31, 111, 229, 0.22);
     }
 
     .alert-badge.hot {
-        background: #E74C5B;
+        background: #E74756;
+        box-shadow: 0 6px 14px rgba(231, 71, 86, 0.22);
     }
 
     .alert-badge.watch {
         background: #F59E0B;
+        box-shadow: 0 6px 14px rgba(245, 158, 11, 0.20);
     }
 
     .alert-badge.monitor {
-        background: #64748B;
+        background: #56657A;
+        box-shadow: 0 6px 14px rgba(86, 101, 122, 0.18);
     }
 
     div[data-testid="stMetric"] {
-        background: #FFFFFF;
-        border: 1px solid #E8EEF5;
+        background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%);
+        border: 1px solid #DDE7F2;
         border-radius: 16px;
         padding: 10px 12px;
         min-height: 82px;
-        box-shadow: 0 6px 18px rgba(35, 55, 80, 0.045);
+        box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
     }
 
     div[data-testid="stMetricLabel"] {
-        color: #8A93A3;
+        color: #7A8797;
         font-size: 11px;
         font-weight: 850;
     }
 
     div[data-testid="stMetricValue"] {
-        color: #202532;
+        color: #172033;
         font-size: 20px;
         font-weight: 900;
         letter-spacing: -0.04em;
@@ -243,15 +257,16 @@ st.markdown(
     }
 
     .detail-box {
-        background: #F8FAFD;
-        border: 1px solid #E3EAF3;
+        background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%);
+        border: 1px solid #DDE7F2;
         border-radius: 16px;
         padding: 13px 14px;
         margin-bottom: 9px;
+        box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
     }
 
     .detail-title {
-        color: #202532;
+        color: #172033;
         font-size: 20px;
         font-weight: 900;
         letter-spacing: -0.045em;
@@ -259,14 +274,14 @@ st.markdown(
     }
 
     .detail-id {
-        color: #2E8B55;
+        color: #178554;
         font-size: 12px;
         font-weight: 900;
         margin-bottom: 8px;
     }
 
     .detail-label {
-        color: #8A93A3;
+        color: #7A8797;
         font-size: 11px;
         font-weight: 900;
         margin-top: 8px;
@@ -274,22 +289,23 @@ st.markdown(
     }
 
     .detail-text {
-        color: #4F5A6A;
+        color: #4D5A6B;
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 750;
         line-height: 1.42;
     }
 
     .small-info {
-        color: #7C8594;
+        color: #6F7C8D;
         font-size: 11.5px;
-        font-weight: 700;
+        font-weight: 750;
         line-height: 1.45;
         margin-top: 8px;
     }
 
     iframe {
         border-radius: 16px;
+        box-shadow: 0 10px 26px rgba(22, 50, 82, 0.08);
     }
 
     div[data-testid="stTextInput"] {
@@ -299,22 +315,22 @@ st.markdown(
     div[data-testid="stTextInput"] > div {
         background: #FFFFFF !important;
         border-radius: 14px !important;
-        border: 1px solid #DCE5F0 !important;
-        box-shadow: 0 8px 20px rgba(35, 55, 80, 0.08) !important;
+        border: 1px solid #D4E0ED !important;
+        box-shadow: 0 8px 20px rgba(24, 55, 90, 0.09) !important;
     }
 
     div[data-testid="stTextInput"] input {
         background: #FFFFFF !important;
-        color: #202532 !important;
+        color: #172033 !important;
         border-radius: 14px !important;
         min-height: 40px;
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 750;
         border: none !important;
     }
 
     div[data-testid="stTextInput"] input::placeholder {
-        color: #8A93A3 !important;
+        color: #8A96A7 !important;
         opacity: 1 !important;
         font-weight: 650;
     }
@@ -329,11 +345,22 @@ st.markdown(
         border-radius: 13px;
         min-height: 40px;
         font-weight: 900;
-        background: #2E6BEA;
+        background: linear-gradient(135deg, #1E63D6 0%, #2E7CF6 100%);
         color: white;
         border: 0;
         margin-top: -0.15rem;
-        box-shadow: 0 8px 18px rgba(46, 107, 234, 0.24);
+        box-shadow: 0 8px 18px rgba(31, 111, 229, 0.26);
+    }
+
+    div[data-testid="stFormSubmitButton"] button:hover {
+        background: linear-gradient(135deg, #184FAE 0%, #256CE6 100%);
+        color: white;
+        border: 0;
+    }
+
+    div[data-testid="stToggle"] label {
+        color: #263246 !important;
+        font-weight: 800 !important;
     }
     </style>
     """,
@@ -466,10 +493,11 @@ def render_chat_messages(messages: list[dict]) -> None:
         }}
 
         .chat-bubble.assistant {{
-            background: #F8FAFD;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%);
             color: #2F3747;
-            border: 1px solid #E3EAF3;
+            border: 1px solid #DDE7F2;
             border-bottom-left-radius: 5px;
+            box-shadow: 0 6px 14px rgba(24, 55, 90, 0.05);
         }}
     </style>
     </head>
@@ -750,6 +778,7 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
             mi = 30
         else:
             mi = 0
+
         candidate = f"{h:02d}:{mi:02d}"
         if candidate in available_times:
             return candidate
@@ -758,12 +787,15 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
     if m:
         ampm, h_str, half = m.groups()
         h = int(h_str)
+
         if ampm == "오후" and h < 12:
             h += 12
         if ampm == "오전" and h == 12:
             h = 0
+
         mi = 30 if half else 0
         candidate = f"{h:02d}:{mi:02d}"
+
         if candidate in available_times:
             return candidate
 
@@ -773,6 +805,7 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
         mi = 30 if m.group(2) else 0
 
         candidates = []
+
         if 0 <= h <= 23:
             candidates.append(f"{h:02d}:{mi:02d}")
         if 1 <= h <= 11:
@@ -793,7 +826,9 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
         cand_norm = cand.replace(" ", "").replace("-", "_")
         if "_" not in cand_norm:
             cand_norm = cand_norm.replace("생활권경계", "생활권경계_")
+
         match = area_info[area_info["생활권역ID"] == cand_norm]
+
         if not match.empty:
             return match["생활권역ID"].iloc[0]
 
@@ -972,6 +1007,7 @@ def prepare_map_payload(
     geojson = json.loads(gdf.to_json())
 
     columns_df = pd.DataFrame(gdf.drop(columns="geometry")).copy()
+
     columns_df["fill_color"] = columns_df.apply(
         lambda row: [255, 90, 70, 235]
         if bool(row.get("is_focus", False))
@@ -1064,7 +1100,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 width: 100%;
                 height: {height}px;
                 overflow: hidden;
-                background: #F8FAFD;
+                background: #F5F8FC;
                 font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
             }}
 
@@ -1074,7 +1110,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 height: {height}px;
                 border-radius: 16px;
                 overflow: hidden;
-                background: #F8FAFD;
+                background: #F5F8FC;
             }}
 
             .deck-tooltip {{
@@ -1331,11 +1367,12 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .alert-card {{
-            background: #F8FAFD;
-            border: 1px solid #E3EAF3;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFD 100%);
+            border: 1px solid #DDE7F2;
             border-radius: 17px;
             padding: 15px 16px;
             box-sizing: border-box;
+            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
         }}
 
         .alert-top {{
@@ -1351,7 +1388,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .alert-title {{
-            color: #222633;
+            color: #20283A;
             font-size: 13.8px;
             font-weight: 900;
             line-height: 1.35;
@@ -1360,15 +1397,15 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .alert-meta {{
-            color: #7C8594;
+            color: #6F7C8D;
             font-size: 11.7px;
-            font-weight: 700;
+            font-weight: 750;
             line-height: 1.45;
             word-break: keep-all;
         }}
 
         .alert-value {{
-            color: #222633;
+            color: #172033;
             font-size: 12.2px;
             font-weight: 900;
             margin-top: 7px;
@@ -1383,26 +1420,31 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
             font-size: 10px;
             font-weight: 900;
             color: #FFFFFF;
-            background: #2E6BEA;
+            background: #1F6FE5;
             white-space: nowrap;
             margin-top: 1px;
             flex-shrink: 0;
+            box-shadow: 0 6px 14px rgba(31, 111, 229, 0.22);
         }}
 
         .alert-badge.hot {{
-            background: #E74C5B;
+            background: #E74756;
+            box-shadow: 0 6px 14px rgba(231, 71, 86, 0.22);
         }}
 
         .alert-badge.focus {{
-            background: #2E6BEA;
+            background: #1F6FE5;
+            box-shadow: 0 6px 14px rgba(31, 111, 229, 0.22);
         }}
 
         .alert-badge.watch {{
             background: #F59E0B;
+            box-shadow: 0 6px 14px rgba(245, 158, 11, 0.20);
         }}
 
         .alert-badge.monitor {{
-            background: #64748B;
+            background: #56657A;
+            box-shadow: 0 6px 14px rgba(86, 101, 122, 0.18);
         }}
     </style>
     </head>
@@ -1504,16 +1546,22 @@ except Exception as e:
 available_dates_all = sorted(pred["date_str"].unique())
 
 if "selected_date" not in st.session_state:
-    st.session_state.selected_date = DEFAULT_DATE if DEFAULT_DATE in available_dates_all else available_dates_all[0]
+    st.session_state.selected_date = (
+        DEFAULT_DATE if DEFAULT_DATE in available_dates_all else available_dates_all[0]
+    )
 
 available_times_default = sorted(
     pred[pred["date_str"] == st.session_state.selected_date]["time_str"].unique()
 )
 
 if "selected_time" not in st.session_state:
-    st.session_state.selected_time = DEFAULT_TIME if DEFAULT_TIME in available_times_default else available_times_default[0]
+    st.session_state.selected_time = (
+        DEFAULT_TIME if DEFAULT_TIME in available_times_default else available_times_default[0]
+    )
 
-zone_candidates = area_info[area_info["생활권역ID"].isin(meta["zone_ids"])].sort_values("생활권역ID")
+zone_candidates = area_info[
+    area_info["생활권역ID"].isin(meta["zone_ids"])
+].sort_values("생활권역ID")
 
 if "selected_zone_id" not in st.session_state:
     st.session_state.selected_zone_id = zone_candidates["생활권역ID"].iloc[0]
@@ -1647,7 +1695,7 @@ if st.session_state.messages[-1]["role"] == "user":
 
 # =========================================================
 # 메인 3분할 레이아웃
-# 왼쪽: 알림/상세, 가운데: 지도, 오른쪽: 챗봇
+# 왼쪽: 알림/상세, 가운데: 지도, 오른쪽: 모도리
 # =========================================================
 alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
