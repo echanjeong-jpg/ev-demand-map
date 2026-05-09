@@ -37,9 +37,12 @@ DEFAULT_TIME = "18:00"
 # =========================================================
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
-
-# 챗봇 메시지는 위쪽부터 시작하고, 입력창은 아래쪽에 오도록 조정
 CHAT_SCROLL_HEIGHT = 430
+
+# 기본 지도 화면: 서울시 전체 생활권이 더 잘 들어오도록 기존 10.05보다 축소
+OVERVIEW_LATITUDE = 37.5555
+OVERVIEW_LONGITUDE = 126.9860
+OVERVIEW_ZOOM = 9.45
 
 
 # =========================================================
@@ -65,7 +68,10 @@ st.markdown(
     }
 
     .stApp {
-        background: #EEF3F8;
+        background:
+            radial-gradient(circle at 50% 0%, rgba(31, 120, 180, 0.035), rgba(255,255,255,0) 34%),
+            linear-gradient(180deg, #FAFCFF 0%, #F5F8FC 100%);
+        box-shadow: inset 0 18px 42px rgba(25, 52, 83, 0.055);
     }
 
     .block-container {
@@ -75,7 +81,7 @@ st.markdown(
     }
 
     header[data-testid="stHeader"] {
-        background: rgba(238, 243, 248, 0);
+        background: rgba(250, 252, 255, 0);
         height: 0rem;
     }
 
@@ -98,10 +104,13 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF;
+        background: rgba(255, 255, 255, 0.92);
         border-radius: 22px;
-        box-shadow: 0 10px 30px rgba(35, 55, 80, 0.07);
-        border: 1px solid rgba(220, 228, 238, 0.95);
+        box-shadow:
+            0 16px 38px rgba(35, 55, 80, 0.075),
+            0 1px 0 rgba(255, 255, 255, 0.95) inset;
+        border: 1px solid rgba(218, 227, 238, 0.96);
+        backdrop-filter: blur(6px);
     }
 
     .panel-title {
@@ -205,14 +214,6 @@ st.markdown(
 
     .alert-badge.monitor {
         background: #64748B;
-    }
-
-    .panel-bottom-copy {
-        color: #7C8594;
-        font-size: 11.5px;
-        font-weight: 700;
-        line-height: 1.45;
-        margin-top: 13px;
     }
 
     div[data-testid="stMetric"] {
@@ -928,10 +929,10 @@ def get_zone_view(gdf: gpd.GeoDataFrame, zone_id: Optional[str], use_3d_column: 
         }
 
     return {
-        "latitude": 37.5665,
-        "longitude": 126.9780,
-        "zoom": 10.05,
-        "pitch": 42 if use_3d_column else 0,
+        "latitude": OVERVIEW_LATITUDE,
+        "longitude": OVERVIEW_LONGITUDE,
+        "zoom": OVERVIEW_ZOOM,
+        "pitch": 40 if use_3d_column else 0,
         "bearing": 0,
     }
 
@@ -1007,10 +1008,10 @@ def prepare_map_payload(
     ].to_dict(orient="records")
 
     overview_view = {
-        "latitude": 37.5665,
-        "longitude": 126.9780,
-        "zoom": 10.05,
-        "pitch": 42 if use_3d_column else 0,
+        "latitude": OVERVIEW_LATITUDE,
+        "longitude": OVERVIEW_LONGITUDE,
+        "zoom": OVERVIEW_ZOOM,
+        "pitch": 40 if use_3d_column else 0,
         "bearing": 0,
     }
 
@@ -1141,7 +1142,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                     id: "living-area-columns",
                     data: columnData,
                     diskResolution: 32,
-                    radius: 260,
+                    radius: 250,
                     extruded: true,
                     pickable: true,
                     getPosition: d => [d.lon, d.lat],
@@ -1262,11 +1263,6 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 # 표시 함수
 # =========================================================
 def draw_alerts(top_df: pd.DataFrame, selected_time: str):
-    """
-    수요 급증 알림 렌더링.
-    st.markdown에서 HTML이 문자 그대로 출력되는 문제를 피하기 위해
-    components.html로 별도 렌더링한다.
-    """
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
         return
@@ -1525,8 +1521,9 @@ if "selected_zone_id" not in st.session_state:
 if "previous_focus_zone_id" not in st.session_state:
     st.session_state.previous_focus_zone_id = None
 
+# 기본값: 3D 막대 표시 ON
 if "use_3d_column" not in st.session_state:
-    st.session_state.use_3d_column = False
+    st.session_state.use_3d_column = True
 
 if "has_query" not in st.session_state:
     st.session_state.has_query = False
@@ -1539,7 +1536,7 @@ if "messages" not in st.session_state:
         {
             "role": "assistant",
             "content": (
-                "안녕하세요. 저는 E-Vlog 충전수요 분석 LLM입니다.\n\n"
+                "안녕하세요. 저는 모도리입니다.\n\n"
                 "보고 싶은 날짜, 시간, 위치를 자연어로 입력하면 "
                 "지도에서 해당 생활권을 확대하고 예측 충전수요를 알려드립니다.\n\n"
                 "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
@@ -1663,7 +1660,7 @@ with alert_col:
         if st.session_state.has_query:
             panel_title(
                 "선택 생활권 상세",
-                "챗봇이 해석한 위치의 예측 결과입니다.",
+                "모도리가 해석한 위치의 예측 결과입니다.",
             )
 
             draw_selected_detail_native(
@@ -1715,14 +1712,16 @@ with map_col:
             )
 
         with header_right:
-            use_3d = st.toggle(
-                "3D 막대 표시",
-                value=st.session_state.use_3d_column,
-                key="map_3d_toggle",
+            use_2d = st.toggle(
+                "2D 지도 보기",
+                value=not st.session_state.use_3d_column,
+                key="map_2d_toggle",
             )
 
-            if use_3d != st.session_state.use_3d_column:
-                st.session_state.use_3d_column = use_3d
+            next_use_3d = not use_2d
+
+            if next_use_3d != st.session_state.use_3d_column:
+                st.session_state.use_3d_column = next_use_3d
                 st.rerun()
 
         map_payload = prepare_map_payload(
@@ -1747,12 +1746,12 @@ with map_col:
 
 
 # =========================================================
-# 3. 오른쪽: 챗봇 LLM
+# 3. 오른쪽: 모도리
 # =========================================================
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
-            "챗봇 LLM",
+            "모도리",
             "자연어로 날짜, 시간, 위치를 입력하세요.",
         )
 
