@@ -68,18 +68,16 @@ st.markdown(
     }
 
     /*
-    화성특례시 교통정보센터와 유사한 관제센터형 색감:
-    - 완전 흰색이 아닌 회청색 배경
-    - 정보 패널은 흰색 카드로 유지
-    - Framer 상단 네비게이션의 흰색과 구분되도록 그림자와 톤 차이 적용
+    화성특례시 교통정보센터처럼 흰색 기반의 관제형 화면으로 조정.
+    Framer 상단 네비게이션의 완전한 흰색과 구분되도록
+    아주 약한 그레이 톤과 그림자만 적용.
     */
     .stApp {
         background:
-            radial-gradient(circle at 50% -8%, rgba(17, 68, 120, 0.10), rgba(255,255,255,0) 34%),
-            linear-gradient(180deg, #F4F7FA 0%, #EAF0F6 100%) !important;
+            linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 48%, #F7F9FC 100%) !important;
         box-shadow:
-            inset 0 18px 42px rgba(15, 45, 80, 0.08),
-            inset 0 -18px 42px rgba(15, 45, 80, 0.035);
+            inset 0 10px 24px rgba(20, 40, 70, 0.035),
+            inset 0 -10px 24px rgba(20, 40, 70, 0.025);
     }
 
     .block-container {
@@ -89,7 +87,7 @@ st.markdown(
     }
 
     header[data-testid="stHeader"] {
-        background: rgba(244, 247, 250, 0);
+        background: rgba(255, 255, 255, 0);
         height: 0rem;
     }
 
@@ -112,13 +110,13 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: rgba(255, 255, 255, 0.94);
+        background: #FFFFFF;
         border-radius: 22px;
-        border: 1px solid rgba(173, 191, 211, 0.95);
+        border: 1px solid rgba(218, 226, 236, 0.95);
         box-shadow:
-            0 16px 38px rgba(18, 48, 82, 0.105),
-            0 1px 0 rgba(255, 255, 255, 0.95) inset;
-        backdrop-filter: blur(8px);
+            0 10px 26px rgba(25, 45, 70, 0.075),
+            0 1px 0 rgba(255, 255, 255, 1) inset;
+        backdrop-filter: blur(6px);
     }
 
     .panel-title {
@@ -156,15 +154,8 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(34, 93, 180, 0.18);
     }
 
-    .alert-stack {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-        margin-top: 10px;
-    }
-
     .alert-card {
-        background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFD 100%);
+        background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
         border: 1px solid #DDE7F2;
         border-radius: 17px;
         padding: 15px 16px;
@@ -231,7 +222,7 @@ st.markdown(
     }
 
     div[data-testid="stMetric"] {
-        background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%);
+        background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
         border: 1px solid #DDE7F2;
         border-radius: 16px;
         padding: 10px 12px;
@@ -257,7 +248,7 @@ st.markdown(
     }
 
     .detail-box {
-        background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%);
+        background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
         border: 1px solid #DDE7F2;
         border-radius: 16px;
         padding: 13px 14px;
@@ -493,7 +484,7 @@ def render_chat_messages(messages: list[dict]) -> None:
         }}
 
         .chat-bubble.assistant {{
-            background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFE 100%);
+            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
             color: #2F3747;
             border: 1px solid #DDE7F2;
             border-bottom-left-radius: 5px;
@@ -1100,7 +1091,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 width: 100%;
                 height: {height}px;
                 overflow: hidden;
-                background: #F5F8FC;
+                background: #FFFFFF;
                 font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
             }}
 
@@ -1110,7 +1101,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 height: {height}px;
                 border-radius: 16px;
                 overflow: hidden;
-                background: #F5F8FC;
+                background: #FFFFFF;
             }}
 
             .deck-tooltip {{
@@ -1367,7 +1358,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .alert-card {{
-            background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFD 100%);
+            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
             border: 1px solid #DDE7F2;
             border-radius: 17px;
             padding: 15px 16px;
