@@ -38,12 +38,10 @@ TIME_UNIT_MINUTES = 30
 DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
-# Framer iframe 1440 × 685~730 대응
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
 CHAT_SCROLL_HEIGHT = 430
 
-# 서울시 전체 생활권이 기본 화면에 더 잘 들어오도록 조정
 OVERVIEW_LATITUDE = 37.5555
 OVERVIEW_LONGITUDE = 126.9860
 OVERVIEW_ZOOM = 9.45
@@ -153,73 +151,6 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(34, 93, 180, 0.18);
     }
 
-    .alert-card {
-        background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
-        border: 1px solid #DDE7F2;
-        border-radius: 17px;
-        padding: 15px 16px;
-        box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
-    }
-
-    .alert-top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
-    }
-
-    .alert-title {
-        color: #20283A;
-        font-size: 13.8px;
-        font-weight: 900;
-        line-height: 1.35;
-        margin-bottom: 6px;
-    }
-
-    .alert-meta {
-        color: #6F7C8D;
-        font-size: 11.7px;
-        font-weight: 750;
-        line-height: 1.45;
-    }
-
-    .alert-value {
-        color: #172033;
-        font-size: 12.2px;
-        font-weight: 900;
-        margin-top: 7px;
-    }
-
-    .alert-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        padding: 4px 8px;
-        font-size: 10px;
-        font-weight: 900;
-        color: #FFFFFF;
-        background: #1F6FE5;
-        white-space: nowrap;
-        margin-top: 1px;
-        box-shadow: 0 6px 14px rgba(31, 111, 229, 0.22);
-    }
-
-    .alert-badge.hot {
-        background: #E74756;
-        box-shadow: 0 6px 14px rgba(231, 71, 86, 0.22);
-    }
-
-    .alert-badge.watch {
-        background: #F59E0B;
-        box-shadow: 0 6px 14px rgba(245, 158, 11, 0.20);
-    }
-
-    .alert-badge.monitor {
-        background: #56657A;
-        box-shadow: 0 6px 14px rgba(86, 101, 122, 0.18);
-    }
-
     div[data-testid="stMetric"] {
         background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
         border: 1px solid #DDE7F2;
@@ -244,53 +175,6 @@ st.markdown(
 
     div[data-testid="stMetricDelta"] {
         font-size: 11px;
-    }
-
-    .detail-box {
-        background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
-        border: 1px solid #DDE7F2;
-        border-radius: 16px;
-        padding: 13px 14px;
-        margin-bottom: 9px;
-        box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
-    }
-
-    .detail-title {
-        color: #172033;
-        font-size: 20px;
-        font-weight: 900;
-        letter-spacing: -0.045em;
-        margin-bottom: 4px;
-    }
-
-    .detail-id {
-        color: #178554;
-        font-size: 12px;
-        font-weight: 900;
-        margin-bottom: 8px;
-    }
-
-    .detail-label {
-        color: #7A8797;
-        font-size: 11px;
-        font-weight: 900;
-        margin-top: 8px;
-        margin-bottom: 3px;
-    }
-
-    .detail-text {
-        color: #4D5A6B;
-        font-size: 12px;
-        font-weight: 750;
-        line-height: 1.42;
-    }
-
-    .small-info {
-        color: #6F7C8D;
-        font-size: 11.5px;
-        font-weight: 750;
-        line-height: 1.45;
-        margin-top: 8px;
     }
 
     iframe {
@@ -400,110 +284,6 @@ def escape_html(text: str) -> str:
         .replace(">", "&gt;")
         .replace("\n", "<br>")
     )
-
-
-def render_chat_messages(messages: list[dict]) -> None:
-    bubbles = ""
-
-    for msg in messages:
-        role = msg.get("role", "assistant")
-        content = escape_html(msg.get("content", ""))
-        role_class = "user" if role == "user" else "assistant"
-
-        bubbles += f"""
-        <div class="chat-bubble-row {role_class}">
-            <div class="chat-bubble {role_class}">{content}</div>
-        </div>
-        """
-
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="utf-8" />
-    <style>
-        html, body {{
-            margin: 0;
-            padding: 0;
-            background: transparent;
-            font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-        }}
-
-        .chat-scroll-box {{
-            height: {CHAT_SCROLL_HEIGHT}px;
-            overflow-y: auto;
-            padding: 8px 4px 8px 2px;
-            box-sizing: border-box;
-            border-top: 1px solid #EEF2F7;
-            border-bottom: 1px solid #EEF2F7;
-            background: transparent;
-        }}
-
-        .chat-scroll-box::-webkit-scrollbar {{
-            width: 7px;
-        }}
-
-        .chat-scroll-box::-webkit-scrollbar-thumb {{
-            background: #CDD7E5;
-            border-radius: 999px;
-        }}
-
-        .chat-scroll-box::-webkit-scrollbar-track {{
-            background: transparent;
-        }}
-
-        .chat-bubble-row {{
-            display: flex;
-            margin-bottom: 10px;
-        }}
-
-        .chat-bubble-row.user {{
-            justify-content: flex-end;
-        }}
-
-        .chat-bubble-row.assistant {{
-            justify-content: flex-start;
-        }}
-
-        .chat-bubble {{
-            max-width: 88%;
-            border-radius: 15px;
-            padding: 10px 12px;
-            font-size: 12px;
-            font-weight: 700;
-            line-height: 1.52;
-            word-break: keep-all;
-            box-sizing: border-box;
-        }}
-
-        .chat-bubble.user {{
-            background: #2E6BEA;
-            color: #FFFFFF;
-            border-bottom-right-radius: 5px;
-        }}
-
-        .chat-bubble.assistant {{
-            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
-            color: #2F3747;
-            border: 1px solid #DDE7F2;
-            border-bottom-left-radius: 5px;
-            box-shadow: 0 6px 14px rgba(24, 55, 90, 0.05);
-        }}
-    </style>
-    </head>
-    <body>
-        <div class="chat-scroll-box" id="chatbox">
-            {bubbles}
-        </div>
-        <script>
-            const box = document.getElementById("chatbox");
-            box.scrollTop = box.scrollHeight;
-        </script>
-    </body>
-    </html>
-    """
-
-    components.html(html, height=CHAT_SCROLL_HEIGHT + 8, scrolling=False)
 
 
 # =========================================================
@@ -824,32 +604,33 @@ def load_living_area_gdf(shp_path: Path, meta_zone_ids: list[str]) -> gpd.GeoDat
 # =========================================================
 # 자연어 질의 처리
 # =========================================================
-def parse_date_from_text(text: str, available_dates: list[str]) -> Optional[str]:
+def extract_any_date_candidate(text: str) -> Optional[str]:
     m = re.search(r"(20\d{2})[-년./\s]*(\d{1,2})[-월./\s]*(\d{1,2})", text)
     if m:
         y, mo, d = map(int, m.groups())
-        candidate = f"{y:04d}-{mo:02d}-{d:02d}"
-        if candidate in available_dates:
-            return candidate
+        return f"{y:04d}-{mo:02d}-{d:02d}"
 
     m = re.search(r"(\d{1,2})\s*월\s*(\d{1,2})\s*일", text)
     if m:
         mo, d = map(int, m.groups())
-        candidate = f"2025-{mo:02d}-{d:02d}"
-        if candidate in available_dates:
-            return candidate
+        return f"2025-{mo:02d}-{d:02d}"
 
     m = re.search(r"(\d{1,2})[-/.](\d{1,2})", text)
     if m:
         mo, d = map(int, m.groups())
-        candidate = f"2025-{mo:02d}-{d:02d}"
-        if candidate in available_dates:
-            return candidate
+        return f"2025-{mo:02d}-{d:02d}"
 
     return None
 
 
-def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]:
+def parse_date_from_text(text: str, available_dates: list[str]) -> Optional[str]:
+    candidate = extract_any_date_candidate(text)
+    if candidate and candidate in available_dates:
+        return candidate
+    return None
+
+
+def extract_any_time_candidate(text: str) -> Optional[str]:
     m = re.search(r"(\d{1,2})\s*:\s*(\d{1,2})", text)
     if m:
         h, mi = map(int, m.groups())
@@ -862,9 +643,8 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
         else:
             mi = 0
 
-        candidate = f"{h:02d}:{mi:02d}"
-        if candidate in available_times:
-            return candidate
+        if 0 <= h <= 23:
+            return f"{h:02d}:{mi:02d}"
 
     m = re.search(r"(오전|오후)\s*(\d{1,2})\s*시\s*(반)?", text)
     if m:
@@ -877,27 +657,28 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
             h = 0
 
         mi = 30 if half else 0
-        candidate = f"{h:02d}:{mi:02d}"
 
-        if candidate in available_times:
-            return candidate
+        if 0 <= h <= 23:
+            return f"{h:02d}:{mi:02d}"
 
     m = re.search(r"(\d{1,2})\s*시\s*(반)?", text)
     if m:
         h = int(m.group(1))
         mi = 30 if m.group(2) else 0
 
-        candidates = []
-
         if 0 <= h <= 23:
-            candidates.append(f"{h:02d}:{mi:02d}")
+            return f"{h:02d}:{mi:02d}"
+
         if 1 <= h <= 11:
-            candidates.append(f"{h + 12:02d}:{mi:02d}")
+            return f"{h + 12:02d}:{mi:02d}"
 
-        for candidate in candidates:
-            if candidate in available_times:
-                return candidate
+    return None
 
+
+def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]:
+    candidate = extract_any_time_candidate(text)
+    if candidate and candidate in available_times:
+        return candidate
     return None
 
 
@@ -906,10 +687,6 @@ def llm_extract_query(
     pred: pd.DataFrame,
     area_info: pd.DataFrame,
 ) -> dict:
-    """
-    Gemini를 이용해 사용자 질의에서 날짜/시간/위치 표현만 추출.
-    API 키가 없거나 실패하면 빈 dict 반환.
-    """
     available_dates = sorted(pred["date_str"].unique())
     min_date = available_dates[0]
     max_date = available_dates[-1]
@@ -1040,13 +817,23 @@ def parse_user_query(
 ) -> Dict:
     available_dates = sorted(pred["date_str"].unique())
 
-    # 1차: Gemini로 날짜/시간/위치 표현 추출
     llm_result = llm_extract_query(text, pred, area_info)
 
-    # 2차: 추출된 표현을 기존 규칙 기반 파서로 실제 데이터 범위에 맞게 변환
-    date_source = llm_result.get("date_text") or text
-    parsed_date = parse_date_from_text(str(date_source), available_dates)
+    date_source = str(llm_result.get("date_text") or text)
+    any_date = extract_any_date_candidate(date_source) or extract_any_date_candidate(text)
 
+    if any_date and any_date not in available_dates:
+        return {
+            "ok": False,
+            "reason": "date_unavailable",
+            "message": f"{any_date} 날짜는 현재 예측 데이터셋에 존재하지 않습니다.",
+            "date": fallback_date,
+            "time": fallback_time,
+            "zone_id": fallback_zone_id,
+            "llm_extract": llm_result,
+        }
+
+    parsed_date = parse_date_from_text(date_source, available_dates)
     if parsed_date is None:
         parsed_date = parse_date_from_text(text, available_dates)
 
@@ -1055,25 +842,47 @@ def parse_user_query(
 
     available_times = sorted(pred[pred["date_str"] == parsed_date]["time_str"].unique())
 
-    time_source = llm_result.get("time_text") or text
-    parsed_time = parse_time_from_text(str(time_source), available_times)
+    time_source = str(llm_result.get("time_text") or text)
+    any_time = extract_any_time_candidate(time_source) or extract_any_time_candidate(text)
 
+    if any_time and any_time not in available_times:
+        return {
+            "ok": False,
+            "reason": "time_unavailable",
+            "message": f"{parsed_date} {any_time} 시간대는 현재 예측 데이터셋에 존재하지 않습니다.",
+            "date": fallback_date,
+            "time": fallback_time,
+            "zone_id": fallback_zone_id,
+            "llm_extract": llm_result,
+        }
+
+    parsed_time = parse_time_from_text(time_source, available_times)
     if parsed_time is None:
         parsed_time = parse_time_from_text(text, available_times)
 
     if parsed_time is None:
         parsed_time = fallback_time
 
-    location_source = " ".join(
-        [
-            str(llm_result.get("location_text") or ""),
-            text,
-        ]
-    )
+    location_text = str(llm_result.get("location_text") or "").strip()
+    location_source = " ".join([location_text, text]).strip()
 
-    parsed_zone_id = find_zone_by_location(location_source, area_info) or fallback_zone_id
+    parsed_zone_id = find_zone_by_location(location_source, area_info)
+
+    if parsed_zone_id is None:
+        return {
+            "ok": False,
+            "reason": "location_unavailable",
+            "message": "입력한 위치는 현재 서울시 생활권 데이터셋에서 찾을 수 없습니다.",
+            "date": fallback_date,
+            "time": fallback_time,
+            "zone_id": fallback_zone_id,
+            "llm_extract": llm_result,
+        }
 
     return {
+        "ok": True,
+        "reason": "ok",
+        "message": "",
         "date": parsed_date,
         "time": parsed_time,
         "zone_id": parsed_zone_id,
@@ -1480,12 +1289,12 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 # =========================================================
 # 표시 함수
 # =========================================================
-def draw_alerts(top_df: pd.DataFrame, selected_time: str):
+def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
-    alert_rows = top_df.head(4).copy()
+    alert_rows = top_df.head(7).copy()
     cards_html = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
@@ -1495,33 +1304,39 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
         if i == 1:
             badge = "최고수요"
             badge_class = "hot"
-            message = f"{label} — 선택 시각 최고 수요 예상"
+            title = f"{label}"
+            status = "선택 시각 최고 수요 예상"
             guide = "충전기 가용 상태와 대기 가능성을 우선 확인하세요."
         elif i == 2:
             badge = "집중권역"
             badge_class = "focus"
-            message = f"{label} — 충전 수요 집중 권역"
+            title = f"{label}"
+            status = "충전 수요 집중 권역"
             guide = "인근 생활권과의 수요 분산 가능성을 확인하세요."
         elif i == 3:
             badge = "주의"
             badge_class = "watch"
-            message = f"{label} — 운영 여유 확인 필요"
+            title = f"{label}"
+            status = "운영 여유 확인 필요"
             guide = "수요 증가 가능성이 있으므로 운영 여유를 모니터링하세요."
         else:
             badge = "모니터링"
             badge_class = "monitor"
-            message = f"{label} — 추가 모니터링 권장"
-            guide = "피크 시간대 전후의 수요 변화를 함께 확인하세요."
+            title = f"{label}"
+            status = "추가 모니터링 권장"
+            guide = "피크 시간대 전후의 변화를 함께 확인하세요."
 
         cards_html += f"""
-        <div class="alert-card">
-            <div class="alert-top">
-                <div class="alert-text-wrap">
-                    <div class="alert-title">{message}</div>
-                    <div class="alert-meta">{guide}</div>
-                    <div class="alert-value">예측 {value:,.1f} kWh · {selected_time}</div>
+        <div class="traffic-alert-card">
+            <div class="alert-rank">{i}</div>
+            <div class="alert-main">
+                <div class="alert-line">
+                    <div class="alert-title">{title}</div>
+                    <div class="alert-badge {badge_class}">{badge}</div>
                 </div>
-                <div class="alert-badge {badge_class}">{badge}</div>
+                <div class="alert-status">{status}</div>
+                <div class="alert-guide">{guide}</div>
+                <div class="alert-value">예측 {value:,.1f} kWh · {selected_time}</div>
             </div>
         </div>
         """
@@ -1539,56 +1354,102 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
         }}
 
-        .alert-panel-inner {{
-            height: 500px;
+        .alert-stack-panel {{
+            height: 508px;
+            overflow-y: auto;
             box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 8px 0 8px 0;
+            padding: 6px 4px 8px 2px;
         }}
 
-        .alert-card {{
+        .alert-stack-panel::-webkit-scrollbar {{
+            width: 7px;
+        }}
+
+        .alert-stack-panel::-webkit-scrollbar-thumb {{
+            background: #CDD7E5;
+            border-radius: 999px;
+        }}
+
+        .traffic-alert-card {{
+            position: relative;
+            display: grid;
+            grid-template-columns: 26px 1fr;
+            gap: 10px;
             background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
             border: 1px solid #DDE7F2;
+            border-left: 4px solid #1F6FE5;
             border-radius: 17px;
-            padding: 15px 16px;
+            padding: 13px 14px 13px 10px;
             box-sizing: border-box;
+            margin-bottom: 11px;
             box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
         }}
 
-        .alert-top {{
+        .traffic-alert-card:first-child {{
+            border-left-color: #E74756;
+        }}
+
+        .traffic-alert-card:nth-child(3) {{
+            border-left-color: #F59E0B;
+        }}
+
+        .traffic-alert-card:nth-child(n+4) {{
+            border-left-color: #56657A;
+        }}
+
+        .alert-rank {{
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #EDF3FA;
+            color: #172033;
+            font-size: 11px;
+            font-weight: 900;
+            margin-top: 2px;
+        }}
+
+        .alert-main {{
+            min-width: 0;
+        }}
+
+        .alert-line {{
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            gap: 10px;
-        }}
-
-        .alert-text-wrap {{
-            min-width: 0;
-            flex: 1;
+            gap: 8px;
         }}
 
         .alert-title {{
-            color: #20283A;
-            font-size: 13.8px;
+            color: #172033;
+            font-size: 13.5px;
             font-weight: 900;
-            line-height: 1.35;
-            margin-bottom: 6px;
+            line-height: 1.3;
             word-break: keep-all;
         }}
 
-        .alert-meta {{
+        .alert-status {{
+            margin-top: 3px;
+            color: #253044;
+            font-size: 12.2px;
+            font-weight: 850;
+            line-height: 1.4;
+        }}
+
+        .alert-guide {{
+            margin-top: 4px;
             color: #6F7C8D;
-            font-size: 11.7px;
-            font-weight: 750;
-            line-height: 1.45;
+            font-size: 11.4px;
+            font-weight: 700;
+            line-height: 1.4;
             word-break: keep-all;
         }}
 
         .alert-value {{
             color: #172033;
-            font-size: 12.2px;
+            font-size: 12px;
             font-weight: 900;
             margin-top: 7px;
         }}
@@ -1604,7 +1465,6 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
             color: #FFFFFF;
             background: #1F6FE5;
             white-space: nowrap;
-            margin-top: 1px;
             flex-shrink: 0;
             box-shadow: 0 6px 14px rgba(31, 111, 229, 0.22);
         }}
@@ -1631,7 +1491,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
     </style>
     </head>
     <body>
-        <div class="alert-panel-inner">
+        <div class="alert-stack-panel">
             {cards_html}
         </div>
     </body>
@@ -1641,7 +1501,7 @@ def draw_alerts(top_df: pd.DataFrame, selected_time: str):
     components.html(html, height=508, scrolling=False)
 
 
-def draw_selected_detail_native(
+def build_selected_detail_html(
     selected_label: str,
     selected_zone_id: str,
     selected_dongs: str,
@@ -1653,35 +1513,254 @@ def draw_selected_detail_native(
     peak_kwh: float,
     selected_date: str,
     selected_time: str,
-):
-    st.markdown(
-        f"""
-        <div class="detail-box">
-            <div class="detail-title">{selected_label}</div>
-            <div class="detail-id">{selected_zone_id}</div>
-            <div class="detail-label">조회 시각</div>
-            <div class="detail-text">{selected_date} {selected_time}</div>
-            <div class="detail-label">포함 행정동</div>
-            <div class="detail-text">{selected_dongs if selected_dongs else "행정동 정보 없음"}</div>
+) -> str:
+    return f"""
+    <div class="selected-detail-card">
+        <div class="detail-card-header">
+            <div>
+                <div class="detail-card-kicker">선택 생활권 상세</div>
+                <div class="detail-card-title">{escape_html(selected_label)}</div>
+                <div class="detail-card-id">{escape_html(selected_zone_id)}</div>
+            </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-    m1, m2 = st.columns(2)
-    m3, m4 = st.columns(2)
+        <div class="detail-card-meta">
+            <div class="meta-block">
+                <div class="meta-label">조회 시각</div>
+                <div class="meta-text">{escape_html(selected_date)} {escape_html(selected_time)}</div>
+            </div>
+            <div class="meta-block">
+                <div class="meta-label">포함 행정동</div>
+                <div class="meta-text">{escape_html(selected_dongs if selected_dongs else "행정동 정보 없음")}</div>
+            </div>
+        </div>
 
-    with m1:
-        st.metric("현재 예측", f"{zone_pred_kwh:.1f} kWh")
+        <div class="detail-metric-grid">
+            <div class="detail-metric">
+                <div class="metric-label">현재 예측</div>
+                <div class="metric-value">{zone_pred_kwh:.1f} kWh</div>
+            </div>
+            <div class="detail-metric">
+                <div class="metric-label">수요 순위</div>
+                <div class="metric-value">{int(zone_rank)} / {n_zones}</div>
+            </div>
+            <div class="detail-metric">
+                <div class="metric-label">일일 총량</div>
+                <div class="metric-value">{total_day_kwh:.0f} kWh</div>
+            </div>
+            <div class="detail-metric">
+                <div class="metric-label">피크 시간</div>
+                <div class="metric-value">{escape_html(peak_time)}</div>
+                <div class="metric-delta">↑ {peak_kwh:.1f} kWh</div>
+            </div>
+        </div>
+    </div>
+    """
 
-    with m2:
-        st.metric("수요 순위", f"{int(zone_rank)} / {n_zones}")
 
-    with m3:
-        st.metric("일일 총량", f"{total_day_kwh:.0f} kWh")
+def render_chat_panel(
+    messages: list[dict],
+    selected_detail_html: str | None = None,
+) -> None:
+    items_html = ""
 
-    with m4:
-        st.metric("피크 시간", peak_time, f"{peak_kwh:.1f} kWh")
+    for msg in messages:
+        role = msg.get("role", "assistant")
+        content = escape_html(msg.get("content", ""))
+        role_class = "user" if role == "user" else "assistant"
+
+        items_html += f"""
+        <div class="chat-bubble-row {role_class}">
+            <div class="chat-bubble {role_class}">{content}</div>
+        </div>
+        """
+
+    if selected_detail_html:
+        items_html += selected_detail_html
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8" />
+    <style>
+        html, body {{
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        }}
+
+        .chat-scroll-box {{
+            height: {CHAT_SCROLL_HEIGHT}px;
+            overflow-y: auto;
+            padding: 8px 4px 8px 2px;
+            box-sizing: border-box;
+            border-top: 1px solid #EEF2F7;
+            border-bottom: 1px solid #EEF2F7;
+            background: transparent;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar {{
+            width: 7px;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar-thumb {{
+            background: #CDD7E5;
+            border-radius: 999px;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar-track {{
+            background: transparent;
+        }}
+
+        .chat-bubble-row {{
+            display: flex;
+            margin-bottom: 10px;
+        }}
+
+        .chat-bubble-row.user {{
+            justify-content: flex-end;
+        }}
+
+        .chat-bubble-row.assistant {{
+            justify-content: flex-start;
+        }}
+
+        .chat-bubble {{
+            max-width: 88%;
+            border-radius: 15px;
+            padding: 10px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.52;
+            word-break: keep-all;
+            box-sizing: border-box;
+        }}
+
+        .chat-bubble.user {{
+            background: #2E6BEA;
+            color: #FFFFFF;
+            border-bottom-right-radius: 5px;
+        }}
+
+        .chat-bubble.assistant {{
+            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
+            color: #2F3747;
+            border: 1px solid #DDE7F2;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 6px 14px rgba(24, 55, 90, 0.05);
+        }}
+
+        .selected-detail-card {{
+            margin: 12px 2px 8px 2px;
+            padding: 13px;
+            border-radius: 17px;
+            border: 1px solid #DDE7F2;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
+            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.065);
+            box-sizing: border-box;
+        }}
+
+        .detail-card-kicker {{
+            color: #6F7C8D;
+            font-size: 11px;
+            font-weight: 900;
+            margin-bottom: 3px;
+        }}
+
+        .detail-card-title {{
+            color: #172033;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: -0.045em;
+            line-height: 1.25;
+        }}
+
+        .detail-card-id {{
+            color: #178554;
+            font-size: 11.5px;
+            font-weight: 900;
+            margin-top: 4px;
+        }}
+
+        .detail-card-meta {{
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }}
+
+        .meta-label {{
+            color: #7A8797;
+            font-size: 10.5px;
+            font-weight: 900;
+            margin-bottom: 2px;
+        }}
+
+        .meta-text {{
+            color: #4D5A6B;
+            font-size: 11.5px;
+            font-weight: 750;
+            line-height: 1.38;
+            word-break: keep-all;
+        }}
+
+        .detail-metric-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }}
+
+        .detail-metric {{
+            background: #FFFFFF;
+            border: 1px solid #E4ECF5;
+            border-radius: 13px;
+            padding: 9px 10px;
+            min-height: 58px;
+            box-sizing: border-box;
+        }}
+
+        .metric-label {{
+            color: #7A8797;
+            font-size: 10.5px;
+            font-weight: 850;
+            margin-bottom: 4px;
+        }}
+
+        .metric-value {{
+            color: #172033;
+            font-size: 17px;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+        }}
+
+        .metric-delta {{
+            display: inline-flex;
+            margin-top: 4px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #EAF8EF;
+            color: #178554;
+            font-size: 10.5px;
+            font-weight: 900;
+        }}
+    </style>
+    </head>
+    <body>
+        <div class="chat-scroll-box" id="chatbox">
+            {items_html}
+        </div>
+        <script>
+            const box = document.getElementById("chatbox");
+            box.scrollTop = box.scrollHeight;
+        </script>
+    </body>
+    </html>
+    """
+
+    components.html(html, height=CHAT_SCROLL_HEIGHT + 8, scrolling=False)
 
 
 def build_fallback_answer(
@@ -1699,12 +1778,41 @@ def build_fallback_answer(
     return (
         f"{selected_date} {selected_time} 기준으로 요청하신 위치는 "
         f"{selected_label} 생활권에 포함됩니다.\n\n"
-        f"생활권ID: {selected_zone_id}\n"
-        f"선택 시각 예측 충전 수요: {zone_pred_kwh:.1f} kWh\n"
-        f"전체 {n_zones}개 생활권 중 수요 순위: {int(zone_rank)}위\n"
-        f"선택 날짜 총 예측 충전량: {total_day_kwh:.0f} kWh\n"
-        f"피크 시간: {peak_time}, 피크 예측값 {peak_kwh:.1f} kWh\n\n"
-        f"지도는 해당 생활권으로 확대되며, 왼쪽 패널에 상세 정보를 표시했습니다."
+        f"선택 시각 예측 충전 수요는 {zone_pred_kwh:.1f} kWh이며, "
+        f"전체 {n_zones}개 생활권 중 {int(zone_rank)}위입니다.\n"
+        f"해당 날짜의 총 예측 충전량은 {total_day_kwh:.0f} kWh이고, "
+        f"피크 시간은 {peak_time}로 예상됩니다.\n\n"
+        f"지도에서는 해당 생활권을 강조하고, 상세 정보는 이 채팅 패널에 표시했습니다."
+    )
+
+
+def build_invalid_answer(user_text: str, reason_message: str) -> str:
+    system_prompt = """
+너는 E-Vlog 서비스의 전기차 충전수요 분석 챗봇 '모도리'다.
+사용자가 요청한 정보가 현재 데이터셋에 없다는 사실을 친절하고 짧게 설명한다.
+절대로 없는 예측값을 만들지 않는다.
+한국어로 답변한다.
+"""
+
+    user_prompt = f"""
+사용자 질문:
+{user_text}
+
+데이터 검증 결과:
+{reason_message}
+
+위 사실만 바탕으로 답변하라.
+"""
+
+    llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.2)
+
+    if llm_answer:
+        return llm_answer.strip()
+
+    return (
+        f"요청하신 조건은 현재 데이터셋에서 조회할 수 없습니다.\n\n"
+        f"{reason_message}\n\n"
+        f"현재 서비스는 보유한 예측 CSV와 서울시 생활권 경계 데이터에 포함된 날짜, 시간, 위치에 대해서만 답변할 수 있습니다."
     )
 
 
@@ -1847,6 +1955,9 @@ if "animate_zoom" not in st.session_state:
 if "pending_user_query" not in st.session_state:
     st.session_state.pending_user_query = None
 
+if "pending_invalid_query" not in st.session_state:
+    st.session_state.pending_invalid_query = None
+
 if "last_llm_error" not in st.session_state:
     st.session_state.last_llm_error = None
 
@@ -1948,6 +2059,15 @@ map_gdf = prepare_map_gdf(
 # =========================================================
 # LLM 답변 생성
 # =========================================================
+if st.session_state.pending_invalid_query:
+    pending = st.session_state.pending_invalid_query
+    answer = build_invalid_answer(
+        user_text=pending["user_text"],
+        reason_message=pending["reason_message"],
+    )
+    st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.session_state.pending_invalid_query = None
+
 if st.session_state.pending_user_query:
     answer = build_llm_answer(
         user_text=st.session_state.pending_user_query,
@@ -1969,53 +2089,44 @@ if st.session_state.pending_user_query:
 
 
 # =========================================================
+# 채팅 패널에 표시할 선택 생활권 상세 HTML
+# =========================================================
+selected_detail_html = None
+
+if st.session_state.has_query:
+    selected_detail_html = build_selected_detail_html(
+        selected_label=selected_label,
+        selected_zone_id=selected_zone_id,
+        selected_dongs=selected_dongs,
+        zone_pred_kwh=zone_pred_kwh,
+        zone_rank=int(zone_rank),
+        n_zones=n_zones,
+        total_day_kwh=total_day_kwh,
+        peak_time=peak_time,
+        peak_kwh=peak_kwh,
+        selected_date=selected_date,
+        selected_time=selected_time,
+    )
+
+
+# =========================================================
 # 메인 3분할 레이아웃
-# 왼쪽: 알림/상세, 가운데: 지도, 오른쪽: 모도리
+# 왼쪽: 수요급증알림, 가운데: 지도, 오른쪽: 모도리
 # =========================================================
 alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
 
 # =========================================================
-# 1. 왼쪽: 수요 급증 알림 / 선택 생활권 상세
+# 1. 왼쪽: 수요 급증 알림
 # =========================================================
 with alert_col:
     with st.container(border=True, height=PANEL_HEIGHT):
-        if st.session_state.has_query:
-            panel_title(
-                "선택 생활권 상세",
-                "모도리가 해석한 위치의 예측 결과입니다.",
-            )
+        panel_title(
+            "수요 급증 알림",
+            "선택 시각 기준 수요가 높은 권역을 스택형으로 표시합니다.",
+        )
 
-            draw_selected_detail_native(
-                selected_label=selected_label,
-                selected_zone_id=selected_zone_id,
-                selected_dongs=selected_dongs,
-                zone_pred_kwh=zone_pred_kwh,
-                zone_rank=int(zone_rank),
-                n_zones=n_zones,
-                total_day_kwh=total_day_kwh,
-                peak_time=peak_time,
-                peak_kwh=peak_kwh,
-                selected_date=selected_date,
-                selected_time=selected_time,
-            )
-
-            st.markdown(
-                """
-                <div class="small-info">
-                지도에서는 선택된 생활권을 주황색으로 강조하고, 해당 생활권 중심으로 확대 표시합니다.
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        else:
-            panel_title(
-                "수요 급증 알림",
-                "기본 상태에서는 선택 시각 기준 수요가 높은 권역을 표시합니다.",
-            )
-
-            draw_alerts(top10, selected_time)
+        draw_alerts_stack(top10, selected_time)
 
 
 # =========================================================
@@ -2078,7 +2189,10 @@ with chat_col:
             "자연어로 날짜, 시간, 위치를 입력하세요.",
         )
 
-        render_chat_messages(st.session_state.messages)
+        render_chat_panel(
+            messages=st.session_state.messages,
+            selected_detail_html=selected_detail_html,
+        )
 
         with st.form("chat_form", clear_on_submit=True):
             user_text = st.text_input(
@@ -2100,6 +2214,13 @@ with chat_col:
                 fallback_time=st.session_state.selected_time,
                 fallback_zone_id=st.session_state.selected_zone_id,
             )
+
+            if not parsed["ok"]:
+                st.session_state.pending_invalid_query = {
+                    "user_text": clean_user_text,
+                    "reason_message": parsed["message"],
+                }
+                st.rerun()
 
             if st.session_state.has_query:
                 st.session_state.previous_focus_zone_id = st.session_state.selected_zone_id
