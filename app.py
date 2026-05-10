@@ -1341,6 +1341,9 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         </div>
         """
 
+    # 자연스러운 무한 자동 스크롤을 위해 같은 카드 묶음을 2번 반복
+    loop_cards_html = cards_html + cards_html
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -1355,19 +1358,54 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .alert-stack-panel {{
+            position: relative;
             height: 508px;
-            overflow-y: auto;
+            overflow: hidden;
             box-sizing: border-box;
             padding: 6px 4px 8px 2px;
+            background: transparent;
         }}
 
-        .alert-stack-panel::-webkit-scrollbar {{
-            width: 7px;
+        .alert-stack-panel::before {{
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 28px;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
         }}
 
-        .alert-stack-panel::-webkit-scrollbar-thumb {{
-            background: #CDD7E5;
-            border-radius: 999px;
+        .alert-stack-panel::after {{
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 34px;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(0deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
+        }}
+
+        .alert-scroll-track {{
+            will-change: transform;
+            animation: autoStackScroll 28s linear infinite;
+        }}
+
+        .alert-stack-panel:hover .alert-scroll-track {{
+            animation-play-state: paused;
+        }}
+
+        @keyframes autoStackScroll {{
+            0% {{
+                transform: translateY(0);
+            }}
+            100% {{
+                transform: translateY(-50%);
+            }}
         }}
 
         .traffic-alert-card {{
@@ -1385,15 +1423,18 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
         }}
 
-        .traffic-alert-card:first-child {{
+        .traffic-alert-card:nth-child(7n + 1) {{
             border-left-color: #E74756;
         }}
 
-        .traffic-alert-card:nth-child(3) {{
+        .traffic-alert-card:nth-child(7n + 3) {{
             border-left-color: #F59E0B;
         }}
 
-        .traffic-alert-card:nth-child(n+4) {{
+        .traffic-alert-card:nth-child(7n + 4),
+        .traffic-alert-card:nth-child(7n + 5),
+        .traffic-alert-card:nth-child(7n + 6),
+        .traffic-alert-card:nth-child(7n + 7) {{
             border-left-color: #56657A;
         }}
 
@@ -1492,7 +1533,9 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     </head>
     <body>
         <div class="alert-stack-panel">
-            {cards_html}
+            <div class="alert-scroll-track">
+                {loop_cards_html}
+            </div>
         </div>
     </body>
     </html>
