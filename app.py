@@ -1290,6 +1290,10 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 # 표시 함수
 # =========================================================
 def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
+    """
+    화성특례시 교통정보센터의 지체/정체 구간 정보처럼
+    한 스택이 위로 올라오고 잠시 멈춘 뒤 다음 스택이 올라오는 자동 롤링형 알림 패널.
+    """
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
         return
@@ -1302,47 +1306,53 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         value = float(getattr(row, "predicted_kwh"))
 
         if i == 1:
-            badge = "최고수요"
+            badge = "최고"
             badge_class = "hot"
-            title = f"{label}"
-            status = "선택 시각 최고 수요 예상"
-            guide = "충전기 가용 상태와 대기 가능성을 우선 확인하세요."
+            status = "최고 수요"
+            guide = "충전 대기 가능성 우선 확인"
         elif i == 2:
-            badge = "집중권역"
+            badge = "집중"
             badge_class = "focus"
-            title = f"{label}"
-            status = "충전 수요 집중 권역"
-            guide = "인근 생활권과의 수요 분산 가능성을 확인하세요."
+            status = "수요 집중"
+            guide = "인근 권역 분산 운영 검토"
         elif i == 3:
             badge = "주의"
             badge_class = "watch"
-            title = f"{label}"
-            status = "운영 여유 확인 필요"
-            guide = "수요 증가 가능성이 있으므로 운영 여유를 모니터링하세요."
+            status = "운영 주의"
+            guide = "충전기 가용 상태 모니터링"
         else:
-            badge = "모니터링"
+            badge = "관찰"
             badge_class = "monitor"
-            title = f"{label}"
-            status = "추가 모니터링 권장"
-            guide = "피크 시간대 전후의 변화를 함께 확인하세요."
+            status = "모니터링"
+            guide = "피크 전후 변화 확인"
 
         cards_html += f"""
         <div class="traffic-alert-card">
             <div class="alert-rank">{i}</div>
+
             <div class="alert-main">
-                <div class="alert-line">
-                    <div class="alert-title">{title}</div>
+                <div class="alert-topline">
+                    <div class="alert-title">{label}</div>
                     <div class="alert-badge {badge_class}">{badge}</div>
                 </div>
-                <div class="alert-status">{status}</div>
-                <div class="alert-guide">{guide}</div>
-                <div class="alert-value">예측 {value:,.1f} kWh · {selected_time}</div>
+
+                <div class="alert-midline">
+                    <span class="alert-status">{status}</span>
+                    <span class="alert-dot">·</span>
+                    <span class="alert-time">{selected_time}</span>
+                </div>
+
+                <div class="alert-bottomline">
+                    <div class="alert-value">{value:,.1f}<span> kWh</span></div>
+                    <div class="alert-guide">{guide}</div>
+                </div>
             </div>
         </div>
         """
 
-    # 자연스러운 무한 자동 스크롤을 위해 같은 카드 묶음을 2번 반복
+    # 무한 롤링을 위해 동일 카드 묶음을 2번 반복
     loop_cards_html = cards_html + cards_html
+    card_count = len(alert_rows)
 
     html = f"""
     <!DOCTYPE html>
@@ -1372,8 +1382,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             top: 0;
             left: 0;
             right: 0;
-            height: 28px;
-            z-index: 2;
+            height: 26px;
+            z-index: 3;
             pointer-events: none;
             background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
         }}
@@ -1384,63 +1394,59 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             bottom: 0;
             left: 0;
             right: 0;
-            height: 34px;
-            z-index: 2;
+            height: 30px;
+            z-index: 3;
             pointer-events: none;
             background: linear-gradient(0deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
         }}
 
         .alert-scroll-track {{
             will-change: transform;
-            animation: autoStackScroll 28s linear infinite;
-        }}
-
-        .alert-stack-panel:hover .alert-scroll-track {{
-            animation-play-state: paused;
-        }}
-
-        @keyframes autoStackScroll {{
-            0% {{
-                transform: translateY(0);
-            }}
-            100% {{
-                transform: translateY(-50%);
-            }}
+            transform: translateY(0);
         }}
 
         .traffic-alert-card {{
             position: relative;
             display: grid;
-            grid-template-columns: 26px 1fr;
+            grid-template-columns: 28px 1fr;
             gap: 10px;
-            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
+            min-height: 86px;
+            background: #FFFFFF;
             border: 1px solid #DDE7F2;
-            border-left: 4px solid #1F6FE5;
-            border-radius: 17px;
-            padding: 13px 14px 13px 10px;
+            border-left: 5px solid #1F6FE5;
+            border-radius: 16px;
+            padding: 12px 13px 12px 10px;
             box-sizing: border-box;
-            margin-bottom: 11px;
-            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
+            margin-bottom: 10px;
+            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.07);
         }}
 
         .traffic-alert-card:nth-child(7n + 1) {{
             border-left-color: #E74756;
+            background: linear-gradient(180deg, #FFFFFF 0%, #FFF9FA 100%);
+        }}
+
+        .traffic-alert-card:nth-child(7n + 2) {{
+            border-left-color: #1F6FE5;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 100%);
         }}
 
         .traffic-alert-card:nth-child(7n + 3) {{
             border-left-color: #F59E0B;
+            background: linear-gradient(180deg, #FFFFFF 0%, #FFFCF6 100%);
         }}
 
         .traffic-alert-card:nth-child(7n + 4),
         .traffic-alert-card:nth-child(7n + 5),
         .traffic-alert-card:nth-child(7n + 6),
         .traffic-alert-card:nth-child(7n + 7) {{
-            border-left-color: #56657A;
+            border-left-color: #64748B;
+            background: linear-gradient(180deg, #FFFFFF 0%, #FAFBFD 100%);
         }}
 
         .alert-rank {{
-            width: 24px;
-            height: 24px;
+            width: 25px;
+            height: 25px;
             border-radius: 999px;
             display: flex;
             align-items: center;
@@ -1448,15 +1454,15 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             background: #EDF3FA;
             color: #172033;
             font-size: 11px;
-            font-weight: 900;
-            margin-top: 2px;
+            font-weight: 950;
+            margin-top: 1px;
         }}
 
         .alert-main {{
             min-width: 0;
         }}
 
-        .alert-line {{
+        .alert-topline {{
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -1465,78 +1471,185 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
 
         .alert-title {{
             color: #172033;
-            font-size: 13.5px;
-            font-weight: 900;
-            line-height: 1.3;
+            font-size: 14px;
+            font-weight: 950;
+            line-height: 1.25;
+            letter-spacing: -0.03em;
             word-break: keep-all;
-        }}
-
-        .alert-status {{
-            margin-top: 3px;
-            color: #253044;
-            font-size: 12.2px;
-            font-weight: 850;
-            line-height: 1.4;
-        }}
-
-        .alert-guide {{
-            margin-top: 4px;
-            color: #6F7C8D;
-            font-size: 11.4px;
-            font-weight: 700;
-            line-height: 1.4;
-            word-break: keep-all;
-        }}
-
-        .alert-value {{
-            color: #172033;
-            font-size: 12px;
-            font-weight: 900;
-            margin-top: 7px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }}
 
         .alert-badge {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            min-width: 35px;
             border-radius: 999px;
-            padding: 4px 8px;
+            padding: 4px 7px;
             font-size: 10px;
-            font-weight: 900;
+            font-weight: 950;
             color: #FFFFFF;
             background: #1F6FE5;
             white-space: nowrap;
             flex-shrink: 0;
-            box-shadow: 0 6px 14px rgba(31, 111, 229, 0.22);
+            box-shadow: 0 5px 12px rgba(31, 111, 229, 0.20);
         }}
 
         .alert-badge.hot {{
             background: #E74756;
-            box-shadow: 0 6px 14px rgba(231, 71, 86, 0.22);
+            box-shadow: 0 5px 12px rgba(231, 71, 86, 0.22);
         }}
 
         .alert-badge.focus {{
             background: #1F6FE5;
-            box-shadow: 0 6px 14px rgba(31, 111, 229, 0.22);
         }}
 
         .alert-badge.watch {{
             background: #F59E0B;
-            box-shadow: 0 6px 14px rgba(245, 158, 11, 0.20);
+            box-shadow: 0 5px 12px rgba(245, 158, 11, 0.20);
         }}
 
         .alert-badge.monitor {{
-            background: #56657A;
-            box-shadow: 0 6px 14px rgba(86, 101, 122, 0.18);
+            background: #64748B;
+            box-shadow: 0 5px 12px rgba(100, 116, 139, 0.18);
+        }}
+
+        .alert-midline {{
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #4D5A6B;
+            font-size: 11.7px;
+            font-weight: 850;
+            line-height: 1.25;
+        }}
+
+        .alert-status {{
+            color: #263246;
+        }}
+
+        .alert-dot {{
+            color: #9AA6B5;
+            font-weight: 900;
+        }}
+
+        .alert-time {{
+            color: #687589;
+        }}
+
+        .alert-bottomline {{
+            margin-top: 7px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 8px;
+        }}
+
+        .alert-value {{
+            color: #172033;
+            font-size: 20px;
+            font-weight: 950;
+            line-height: 1;
+            letter-spacing: -0.045em;
+            white-space: nowrap;
+        }}
+
+        .alert-value span {{
+            font-size: 11px;
+            color: #6F7C8D;
+            font-weight: 850;
+            letter-spacing: -0.02em;
+        }}
+
+        .alert-guide {{
+            color: #6F7C8D;
+            font-size: 10.8px;
+            font-weight: 750;
+            line-height: 1.25;
+            text-align: right;
+            word-break: keep-all;
         }}
     </style>
     </head>
     <body>
-        <div class="alert-stack-panel">
-            <div class="alert-scroll-track">
+        <div class="alert-stack-panel" id="alertPanel">
+            <div class="alert-scroll-track" id="alertTrack">
                 {loop_cards_html}
             </div>
         </div>
+
+        <script>
+            const panel = document.getElementById("alertPanel");
+            const track = document.getElementById("alertTrack");
+            const originalCount = {card_count};
+
+            let index = 0;
+            let isPausedByHover = false;
+
+            const MOVE_DURATION = 620;    // 이동 시간
+            const HOLD_DURATION = 1700;   // 멈춰있는 시간
+
+            function getCards() {{
+                return Array.from(track.querySelectorAll(".traffic-alert-card"));
+            }}
+
+            function getOffsetForIndex(targetIndex) {{
+                const cards = getCards();
+                if (!cards[targetIndex]) return 0;
+                return cards[targetIndex].offsetTop;
+            }}
+
+            function moveTo(targetIndex, withTransition = true) {{
+                const offset = getOffsetForIndex(targetIndex);
+
+                if (withTransition) {{
+                    track.style.transition = `transform ${{MOVE_DURATION}}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+                }} else {{
+                    track.style.transition = "none";
+                }}
+
+                track.style.transform = `translateY(-${{offset}}px)`;
+            }}
+
+            function resetIfNeeded() {{
+                if (index >= originalCount) {{
+                    index = 0;
+                    moveTo(0, false);
+
+                    // 브라우저가 transition none을 적용하도록 강제 reflow
+                    void track.offsetHeight;
+                }}
+            }}
+
+            function tick() {{
+                if (isPausedByHover) {{
+                    setTimeout(tick, HOLD_DURATION);
+                    return;
+                }}
+
+                index += 1;
+                moveTo(index, true);
+
+                setTimeout(() => {{
+                    resetIfNeeded();
+                    setTimeout(tick, HOLD_DURATION);
+                }}, MOVE_DURATION);
+            }}
+
+            panel.addEventListener("mouseenter", () => {{
+                isPausedByHover = true;
+            }});
+
+            panel.addEventListener("mouseleave", () => {{
+                isPausedByHover = false;
+            }});
+
+            // 첫 화면은 잠시 보여준 뒤 시작
+            setTimeout(tick, HOLD_DURATION);
+        </script>
     </body>
     </html>
     """
