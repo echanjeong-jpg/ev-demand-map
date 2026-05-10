@@ -715,6 +715,7 @@ def llm_extract_query(
 - 시간이 없으면 null.
 - 위치가 없으면 null.
 - 사용자가 충전수요, 예측, 지도, 생활권, 알려줘, 보여줘 등을 말하면 demand_lookup.
+- 인사, 잡담, 관계없는 질문은 other.
 - 임의로 예측값을 만들지 마라.
 """
 
@@ -734,11 +735,20 @@ JSON만 출력하라.
     llm_text = call_gemini_text(system_prompt, user_prompt, temperature=0.0)
     parsed = safe_json_loads(llm_text or "")
 
+    if not parsed:
+        return {
+            "date_text": None,
+            "time_text": None,
+            "location_text": None,
+            "intent": "other",
+            "raw": llm_text,
+        }
+
     return {
         "date_text": parsed.get("date_text"),
         "time_text": parsed.get("time_text"),
         "location_text": parsed.get("location_text"),
-        "intent": parsed.get("intent", "demand_lookup"),
+        "intent": parsed.get("intent", "other"),
         "raw": llm_text,
     }
 
@@ -816,17 +826,53 @@ def parse_user_query(
     fallback_zone_id: str,
 ) -> Dict:
     available_dates = sorted(pred["date_str"].unique())
-
     llm_result = llm_extract_query(text, pred, area_info)
 
-    date_source = str(llm_result.get("date_text") or text)
+    date_text = str(llm_result.get("date_text") or "").strip()
+    time_text = str(llm_result.get("time_text") or "").strip()
+    location_text = str(llm_result.get("location_text") or "").strip()
+    intent = str(llm_result.get("intent") or "other").strip()
+
+    has_demand_keyword = bool(
+        re.search(
+            r"수요|충전|예측|전기차|생활권|지도|보여|알려|조회|분석|혼잡|급증|피크|kwh|kw",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+    has_any_condition = bool(
+        extract_any_date_candidate(text)
+        or extract_any_time_candidate(text)
+        or find_zone_by_location(text, area_info)
+        or location_text
+    )
+
+    if intent != "demand_lookup" and not has_demand_keyword and not has_any_condition:
+        return {
+            "ok": False,
+            "reason": "needs_ev_query",
+            "message": (
+                "충전수요 예측을 조회하려면 날짜, 시간, 위치를 함께 입력해 주세요. "
+                "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
+            ),
+            "date": fallback_date,
+            "time": fallback_time,
+            "zone_id": fallback_zone_id,
+            "llm_extract": llm_result,
+        }
+
+    date_source = date_text or text
     any_date = extract_any_date_candidate(date_source) or extract_any_date_candidate(text)
 
     if any_date and any_date not in available_dates:
         return {
             "ok": False,
             "reason": "date_unavailable",
-            "message": f"{any_date} 날짜는 현재 예측 데이터셋에 존재하지 않습니다.",
+            "message": (
+                f"{any_date} 날짜는 현재 예측 데이터셋에 존재하지 않습니다. "
+                f"현재 조회 가능한 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지입니다."
+            ),
             "date": fallback_date,
             "time": fallback_time,
             "zone_id": fallback_zone_id,
@@ -842,14 +888,17 @@ def parse_user_query(
 
     available_times = sorted(pred[pred["date_str"] == parsed_date]["time_str"].unique())
 
-    time_source = str(llm_result.get("time_text") or text)
+    time_source = time_text or text
     any_time = extract_any_time_candidate(time_source) or extract_any_time_candidate(text)
 
     if any_time and any_time not in available_times:
         return {
             "ok": False,
             "reason": "time_unavailable",
-            "message": f"{parsed_date} {any_time} 시간대는 현재 예측 데이터셋에 존재하지 않습니다.",
+            "message": (
+                f"{parsed_date} {any_time} 시간대는 현재 예측 데이터셋에 존재하지 않습니다. "
+                "현재 서비스는 예측 CSV에 포함된 30분 단위 시간대만 조회할 수 있습니다."
+            ),
             "date": fallback_date,
             "time": fallback_time,
             "zone_id": fallback_zone_id,
@@ -863,16 +912,17 @@ def parse_user_query(
     if parsed_time is None:
         parsed_time = fallback_time
 
-    location_text = str(llm_result.get("location_text") or "").strip()
     location_source = " ".join([location_text, text]).strip()
-
     parsed_zone_id = find_zone_by_location(location_source, area_info)
 
     if parsed_zone_id is None:
         return {
             "ok": False,
             "reason": "location_unavailable",
-            "message": "입력한 위치는 현재 서울시 생활권 데이터셋에서 찾을 수 없습니다.",
+            "message": (
+                "입력한 위치는 현재 서울시 생활권 데이터셋에서 찾을 수 없습니다. "
+                "서울시 행정동, 자치구, 생활권 이름을 기준으로 다시 입력해 주세요."
+            ),
             "date": fallback_date,
             "time": fallback_time,
             "zone_id": fallback_zone_id,
@@ -1292,13 +1342,13 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     """
     화성특례시 교통정보센터의 지체/정체 구간 정보처럼
-    한 스택이 위로 올라오고 잠시 멈춘 뒤 다음 스택이 올라오는 자동 롤링형 알림 패널.
+    카드가 한 칸씩 위로 올라오고 잠시 멈추는 자동 롤링형 수요 급증 알림.
     """
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
-    alert_rows = top_df.head(7).copy()
+    alert_rows = top_df.head(8).copy()
     cards_html = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
@@ -1306,51 +1356,47 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         value = float(getattr(row, "predicted_kwh"))
 
         if i == 1:
-            badge = "최고"
-            badge_class = "hot"
-            status = "최고 수요"
-            guide = "충전 대기 가능성 우선 확인"
-        elif i == 2:
-            badge = "집중"
-            badge_class = "focus"
-            status = "수요 집중"
-            guide = "인근 권역 분산 운영 검토"
-        elif i == 3:
-            badge = "주의"
-            badge_class = "watch"
-            status = "운영 주의"
-            guide = "충전기 가용 상태 모니터링"
+            state = "급증"
+            state_class = "hot"
+            title = "최고 수요 권역"
+            sub = "충전 대기 가능성 우선 확인"
+        elif i <= 3:
+            state = "집중"
+            state_class = "focus"
+            title = "수요 집중 권역"
+            sub = "인근 생활권 분산 운영 검토"
+        elif i <= 5:
+            state = "주의"
+            state_class = "watch"
+            title = "운영 여유 확인"
+            sub = "충전기 가용 상태 모니터링"
         else:
-            badge = "관찰"
-            badge_class = "monitor"
-            status = "모니터링"
-            guide = "피크 전후 변화 확인"
+            state = "관찰"
+            state_class = "monitor"
+            title = "추가 모니터링"
+            sub = "피크 전후 수요 변화 확인"
 
         cards_html += f"""
         <div class="traffic-alert-card">
-            <div class="alert-rank">{i}</div>
+            <div class="state-circle {state_class}">
+                <span>{state}</span>
+            </div>
 
-            <div class="alert-main">
-                <div class="alert-topline">
-                    <div class="alert-title">{label}</div>
-                    <div class="alert-badge {badge_class}">{badge}</div>
-                </div>
+            <div class="alert-content">
+                <div class="zone-title">{label}</div>
+                <div class="zone-sub">{title}</div>
+                <div class="zone-desc">{sub}</div>
+            </div>
 
-                <div class="alert-midline">
-                    <span class="alert-status">{status}</span>
-                    <span class="alert-dot">·</span>
-                    <span class="alert-time">{selected_time}</span>
-                </div>
-
-                <div class="alert-bottomline">
-                    <div class="alert-value">{value:,.1f}<span> kWh</span></div>
-                    <div class="alert-guide">{guide}</div>
-                </div>
+            <div class="alert-side">
+                <div class="chip-label">예측수요</div>
+                <div class="chip-value">{value:,.1f} kWh</div>
+                <div class="chip-label second">시간</div>
+                <div class="chip-value">{selected_time}</div>
             </div>
         </div>
         """
 
-    # 무한 롤링을 위해 동일 카드 묶음을 2번 반복
     loop_cards_html = cards_html + cards_html
     card_count = len(alert_rows)
 
@@ -1372,7 +1418,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             height: 508px;
             overflow: hidden;
             box-sizing: border-box;
-            padding: 6px 4px 8px 2px;
+            padding: 4px 2px 8px 0;
             background: transparent;
         }}
 
@@ -1382,7 +1428,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             top: 0;
             left: 0;
             right: 0;
-            height: 26px;
+            height: 22px;
             z-index: 3;
             pointer-events: none;
             background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
@@ -1394,7 +1440,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             bottom: 0;
             left: 0;
             right: 0;
-            height: 30px;
+            height: 26px;
             z-index: 3;
             pointer-events: none;
             background: linear-gradient(0deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
@@ -1406,171 +1452,117 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .traffic-alert-card {{
-            position: relative;
+            height: 96px;
             display: grid;
-            grid-template-columns: 28px 1fr;
-            gap: 10px;
-            min-height: 86px;
-            background: #FFFFFF;
-            border: 1px solid #DDE7F2;
-            border-left: 5px solid #1F6FE5;
-            border-radius: 16px;
-            padding: 12px 13px 12px 10px;
+            grid-template-columns: 70px 1fr 104px;
+            align-items: center;
+            gap: 12px;
+            background: #F8F8F8;
+            border: 1px solid #EEF1F5;
+            border-radius: 18px;
+            padding: 12px 14px;
             box-sizing: border-box;
-            margin-bottom: 10px;
-            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.07);
+            margin-bottom: 12px;
+            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.045);
         }}
 
-        .traffic-alert-card:nth-child(7n + 1) {{
-            border-left-color: #E74756;
-            background: linear-gradient(180deg, #FFFFFF 0%, #FFF9FA 100%);
-        }}
-
-        .traffic-alert-card:nth-child(7n + 2) {{
-            border-left-color: #1F6FE5;
-            background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 100%);
-        }}
-
-        .traffic-alert-card:nth-child(7n + 3) {{
-            border-left-color: #F59E0B;
-            background: linear-gradient(180deg, #FFFFFF 0%, #FFFCF6 100%);
-        }}
-
-        .traffic-alert-card:nth-child(7n + 4),
-        .traffic-alert-card:nth-child(7n + 5),
-        .traffic-alert-card:nth-child(7n + 6),
-        .traffic-alert-card:nth-child(7n + 7) {{
-            border-left-color: #64748B;
-            background: linear-gradient(180deg, #FFFFFF 0%, #FAFBFD 100%);
-        }}
-
-        .alert-rank {{
-            width: 25px;
-            height: 25px;
+        .state-circle {{
+            width: 54px;
+            height: 54px;
             border-radius: 999px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #EDF3FA;
-            color: #172033;
-            font-size: 11px;
+            color: #FFFFFF;
+            font-size: 14px;
             font-weight: 950;
-            margin-top: 1px;
+            letter-spacing: -0.04em;
+            box-shadow: 0 8px 14px rgba(20, 30, 45, 0.12);
         }}
 
-        .alert-main {{
+        .state-circle.hot {{
+            background: #FF4A4A;
+        }}
+
+        .state-circle.focus {{
+            background: #2E6BEA;
+        }}
+
+        .state-circle.watch {{
+            background: #F59E0B;
+        }}
+
+        .state-circle.monitor {{
+            background: #64748B;
+        }}
+
+        .alert-content {{
             min-width: 0;
         }}
 
-        .alert-topline {{
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 8px;
-        }}
-
-        .alert-title {{
+        .zone-title {{
             color: #172033;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 950;
+            letter-spacing: -0.04em;
             line-height: 1.25;
-            letter-spacing: -0.03em;
-            word-break: keep-all;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }}
 
-        .alert-badge {{
+        .zone-sub {{
+            margin-top: 5px;
+            color: #2F3A4C;
+            font-size: 12.5px;
+            font-weight: 850;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .zone-desc {{
+            margin-top: 3px;
+            color: #6F7C8D;
+            font-size: 11.2px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+
+        .alert-side {{
+            display: grid;
+            grid-template-columns: auto;
+            justify-items: end;
+            align-items: center;
+        }}
+
+        .chip-label {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 35px;
+            min-width: 64px;
+            height: 20px;
             border-radius: 999px;
-            padding: 4px 7px;
-            font-size: 10px;
-            font-weight: 950;
+            background: #A6A6A6;
             color: #FFFFFF;
-            background: #1F6FE5;
-            white-space: nowrap;
-            flex-shrink: 0;
-            box-shadow: 0 5px 12px rgba(31, 111, 229, 0.20);
-        }}
-
-        .alert-badge.hot {{
-            background: #E74756;
-            box-shadow: 0 5px 12px rgba(231, 71, 86, 0.22);
-        }}
-
-        .alert-badge.focus {{
-            background: #1F6FE5;
-        }}
-
-        .alert-badge.watch {{
-            background: #F59E0B;
-            box-shadow: 0 5px 12px rgba(245, 158, 11, 0.20);
-        }}
-
-        .alert-badge.monitor {{
-            background: #64748B;
-            box-shadow: 0 5px 12px rgba(100, 116, 139, 0.18);
-        }}
-
-        .alert-midline {{
-            margin-top: 5px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            color: #4D5A6B;
-            font-size: 11.7px;
-            font-weight: 850;
-            line-height: 1.25;
-        }}
-
-        .alert-status {{
-            color: #263246;
-        }}
-
-        .alert-dot {{
-            color: #9AA6B5;
+            font-size: 10.5px;
             font-weight: 900;
-        }}
-
-        .alert-time {{
-            color: #687589;
-        }}
-
-        .alert-bottomline {{
-            margin-top: 7px;
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 8px;
-        }}
-
-        .alert-value {{
-            color: #172033;
-            font-size: 20px;
-            font-weight: 950;
             line-height: 1;
-            letter-spacing: -0.045em;
+        }}
+
+        .chip-label.second {{
+            margin-top: 5px;
+        }}
+
+        .chip-value {{
+            color: #172033;
+            font-size: 13px;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-top: 3px;
             white-space: nowrap;
-        }}
-
-        .alert-value span {{
-            font-size: 11px;
-            color: #6F7C8D;
-            font-weight: 850;
-            letter-spacing: -0.02em;
-        }}
-
-        .alert-guide {{
-            color: #6F7C8D;
-            font-size: 10.8px;
-            font-weight: 750;
-            line-height: 1.25;
-            text-align: right;
-            word-break: keep-all;
         }}
     </style>
     </head>
@@ -1589,8 +1581,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             let index = 0;
             let isPausedByHover = false;
 
-            const MOVE_DURATION = 620;    // 이동 시간
-            const HOLD_DURATION = 1700;   // 멈춰있는 시간
+            const MOVE_DURATION = 620;
+            const HOLD_DURATION = 1800;
 
             function getCards() {{
                 return Array.from(track.querySelectorAll(".traffic-alert-card"));
@@ -1618,8 +1610,6 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
                 if (index >= originalCount) {{
                     index = 0;
                     moveTo(0, false);
-
-                    // 브라우저가 transition none을 적용하도록 강제 reflow
                     void track.offsetHeight;
                 }}
             }}
@@ -1647,7 +1637,6 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
                 isPausedByHover = false;
             }});
 
-            // 첫 화면은 잠시 보여준 뒤 시작
             setTimeout(tick, HOLD_DURATION);
         </script>
     </body>
@@ -1942,12 +1931,47 @@ def build_fallback_answer(
     )
 
 
-def build_invalid_answer(user_text: str, reason_message: str) -> str:
+def build_invalid_answer(user_text: str, reason_message: str, reason: str = "invalid") -> str:
+    if reason == "needs_ev_query":
+        system_prompt = """
+너는 E-Vlog 서비스의 전기차 충전수요 분석 챗봇 '모도리'다.
+사용자의 말이 인사, 잡담, 또는 충전수요 예측과 직접 관련 없는 내용일 때,
+친절하게 반응하되 자연스럽게 충전수요 예측 질문으로 유도한다.
+
+절대 예측값을 만들지 않는다.
+한국어로 답변한다.
+답변은 3~5문장으로 짧게 한다.
+"""
+
+        user_prompt = f"""
+사용자 입력:
+{user_text}
+
+서비스 안내:
+이 서비스는 서울시 생활권별 전기차 충전수요를 날짜, 시간, 위치 기준으로 조회한다.
+사용자는 예를 들어 "2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"처럼 질문할 수 있다.
+
+위 내용을 바탕으로 자연스럽게 답변하라.
+"""
+
+        llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.35)
+
+        if llm_answer:
+            return llm_answer.strip()
+
+        return (
+            "안녕하세요. 저는 모도리입니다.\n\n"
+            "전기차 충전수요를 확인하려면 보고 싶은 날짜, 시간, 위치를 함께 입력해 주세요.\n"
+            "예를 들어, `2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘`처럼 물어볼 수 있습니다."
+        )
+
     system_prompt = """
 너는 E-Vlog 서비스의 전기차 충전수요 분석 챗봇 '모도리'다.
-사용자가 요청한 정보가 현재 데이터셋에 없다는 사실을 친절하고 짧게 설명한다.
+사용자가 요청한 조건이 현재 데이터셋에 없다는 사실을 친절하고 명확하게 설명한다.
 절대로 없는 예측값을 만들지 않는다.
+가능하면 사용자가 다시 질문할 수 있는 예시를 제시한다.
 한국어로 답변한다.
+답변은 4~6문장으로 작성한다.
 """
 
     user_prompt = f"""
@@ -1966,9 +1990,9 @@ def build_invalid_answer(user_text: str, reason_message: str) -> str:
         return llm_answer.strip()
 
     return (
-        f"요청하신 조건은 현재 데이터셋에서 조회할 수 없습니다.\n\n"
+        "요청하신 조건은 현재 데이터셋에서 조회할 수 없습니다.\n\n"
         f"{reason_message}\n\n"
-        f"현재 서비스는 보유한 예측 CSV와 서울시 생활권 경계 데이터에 포함된 날짜, 시간, 위치에 대해서만 답변할 수 있습니다."
+        "현재 서비스는 보유한 예측 CSV와 서울시 생활권 경계 데이터에 포함된 날짜, 시간, 위치에 대해서만 답변할 수 있습니다."
     )
 
 
@@ -2105,6 +2129,9 @@ if "use_3d_column" not in st.session_state:
 if "has_query" not in st.session_state:
     st.session_state.has_query = False
 
+if "show_selected_detail" not in st.session_state:
+    st.session_state.show_selected_detail = False
+
 if "animate_zoom" not in st.session_state:
     st.session_state.animate_zoom = False
 
@@ -2220,9 +2247,11 @@ if st.session_state.pending_invalid_query:
     answer = build_invalid_answer(
         user_text=pending["user_text"],
         reason_message=pending["reason_message"],
+        reason=pending.get("reason", "invalid"),
     )
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.session_state.pending_invalid_query = None
+    st.session_state.show_selected_detail = False
 
 if st.session_state.pending_user_query:
     answer = build_llm_answer(
@@ -2242,6 +2271,7 @@ if st.session_state.pending_user_query:
     )
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.session_state.pending_user_query = None
+    st.session_state.show_selected_detail = True
 
 
 # =========================================================
@@ -2249,7 +2279,7 @@ if st.session_state.pending_user_query:
 # =========================================================
 selected_detail_html = None
 
-if st.session_state.has_query:
+if st.session_state.has_query and st.session_state.show_selected_detail:
     selected_detail_html = build_selected_detail_html(
         selected_label=selected_label,
         selected_zone_id=selected_zone_id,
@@ -2279,7 +2309,7 @@ with alert_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
             "수요 급증 알림",
-            "선택 시각 기준 수요가 높은 권역을 스택형으로 표시합니다.",
+            "선택 시각 기준 수요가 높은 권역을 표시합니다.",
         )
 
         draw_alerts_stack(top10, selected_time)
@@ -2375,7 +2405,12 @@ with chat_col:
                 st.session_state.pending_invalid_query = {
                     "user_text": clean_user_text,
                     "reason_message": parsed["message"],
+                    "reason": parsed["reason"],
                 }
+
+                st.session_state.show_selected_detail = False
+                st.session_state.animate_zoom = False
+
                 st.rerun()
 
             if st.session_state.has_query:
@@ -2387,6 +2422,7 @@ with chat_col:
             st.session_state.selected_time = parsed["time"]
             st.session_state.selected_zone_id = parsed["zone_id"]
             st.session_state.has_query = True
+            st.session_state.show_selected_detail = True
             st.session_state.animate_zoom = True
             st.session_state.pending_user_query = clean_user_text
 
