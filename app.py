@@ -1343,6 +1343,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     """
     화성특례시 교통정보센터의 지체/정체 구간 정보처럼
     카드가 한 칸씩 위로 올라오고 잠시 멈추는 자동 롤링형 수요 급증 알림.
+    텍스트 잘림을 줄이고, 제목 중심으로만 볼드 처리한 가독성 개선 버전.
     """
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
@@ -1359,22 +1360,22 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             state = "급증"
             state_class = "hot"
             title = "최고 수요 권역"
-            sub = "충전 대기 가능성 우선 확인"
+            sub = "충전 대기 가능성을 우선 확인하세요"
         elif i <= 3:
-            state = "집중"
-            state_class = "focus"
-            title = "수요 집중 권역"
-            sub = "인근 생활권 분산 운영 검토"
-        elif i <= 5:
             state = "주의"
             state_class = "watch"
             title = "운영 여유 확인"
-            sub = "충전기 가용 상태 모니터링"
-        else:
+            sub = "충전기 가용 상태를 확인하세요"
+        elif i <= 5:
             state = "관찰"
             state_class = "monitor"
             title = "추가 모니터링"
-            sub = "피크 전후 수요 변화 확인"
+            sub = "피크 전후 수요 변화를 확인하세요"
+        else:
+            state = "관찰"
+            state_class = "monitor"
+            title = "수요 변화 관찰"
+            sub = "시간대별 변화를 함께 확인하세요"
 
         cards_html += f"""
         <div class="traffic-alert-card">
@@ -1440,7 +1441,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             bottom: 0;
             left: 0;
             right: 0;
-            height: 26px;
+            height: 28px;
             z-index: 3;
             pointer-events: none;
             background: linear-gradient(0deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
@@ -1452,15 +1453,15 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .traffic-alert-card {{
-            height: 96px;
+            min-height: 104px;
             display: grid;
-            grid-template-columns: 70px 1fr 104px;
+            grid-template-columns: 62px minmax(0, 1fr) 108px;
             align-items: center;
             gap: 12px;
             background: #F8F8F8;
             border: 1px solid #EEF1F5;
             border-radius: 18px;
-            padding: 12px 14px;
+            padding: 13px 14px;
             box-sizing: border-box;
             margin-bottom: 12px;
             box-shadow: 0 8px 18px rgba(24, 55, 90, 0.045);
@@ -1475,17 +1476,14 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             justify-content: center;
             color: #FFFFFF;
             font-size: 14px;
-            font-weight: 950;
-            letter-spacing: -0.04em;
+            font-weight: 800;
+            letter-spacing: -0.035em;
             box-shadow: 0 8px 14px rgba(20, 30, 45, 0.12);
+            flex-shrink: 0;
         }}
 
         .state-circle.hot {{
             background: #FF4A4A;
-        }}
-
-        .state-circle.focus {{
-            background: #2E6BEA;
         }}
 
         .state-circle.watch {{
@@ -1498,37 +1496,40 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
 
         .alert-content {{
             min-width: 0;
+            overflow: visible;
         }}
 
         .zone-title {{
             color: #172033;
-            font-size: 15px;
-            font-weight: 950;
-            letter-spacing: -0.04em;
-            line-height: 1.25;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-size: 14.5px;
+            font-weight: 800;
+            letter-spacing: -0.035em;
+            line-height: 1.28;
+            word-break: keep-all;
+            overflow-wrap: anywhere;
+            white-space: normal;
         }}
 
         .zone-sub {{
-            margin-top: 5px;
+            margin-top: 6px;
             color: #2F3A4C;
             font-size: 12.5px;
-            font-weight: 850;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-weight: 700;
+            line-height: 1.32;
+            word-break: keep-all;
+            overflow-wrap: anywhere;
+            white-space: normal;
         }}
 
         .zone-desc {{
-            margin-top: 3px;
+            margin-top: 4px;
             color: #6F7C8D;
             font-size: 11.2px;
-            font-weight: 700;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-weight: 500;
+            line-height: 1.35;
+            word-break: keep-all;
+            overflow-wrap: anywhere;
+            white-space: normal;
         }}
 
         .alert-side {{
@@ -1536,33 +1537,35 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             grid-template-columns: auto;
             justify-items: end;
             align-items: center;
+            min-width: 104px;
         }}
 
         .chip-label {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 64px;
-            height: 20px;
+            min-width: 70px;
+            height: 21px;
             border-radius: 999px;
             background: #A6A6A6;
             color: #FFFFFF;
             font-size: 10.5px;
-            font-weight: 900;
+            font-weight: 700;
             line-height: 1;
         }}
 
         .chip-label.second {{
-            margin-top: 5px;
+            margin-top: 6px;
         }}
 
         .chip-value {{
             color: #172033;
             font-size: 13px;
-            font-weight: 900;
-            line-height: 1.1;
-            margin-top: 3px;
+            font-weight: 700;
+            line-height: 1.15;
+            margin-top: 4px;
             white-space: nowrap;
+            letter-spacing: -0.015em;
         }}
     </style>
     </head>
@@ -1582,7 +1585,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             let isPausedByHover = false;
 
             const MOVE_DURATION = 620;
-            const HOLD_DURATION = 1800;
+            const HOLD_DURATION = 1900;
 
             function getCards() {{
                 return Array.from(track.querySelectorAll(".traffic-alert-card"));
