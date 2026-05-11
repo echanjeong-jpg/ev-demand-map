@@ -1917,6 +1917,7 @@ def build_selected_detail_html(
 def render_chat_panel(
     messages: list[dict],
     selected_detail_html: str | None = None,
+    is_typing: bool = False,
 ) -> None:
     items_html = ""
 
@@ -1933,7 +1934,18 @@ def render_chat_panel(
         </div>
         """
 
-    if selected_detail_html:
+    if is_typing:
+        items_html += """
+        <div class="chat-bubble-row assistant">
+            <div class="chat-bubble assistant typing-bubble">
+                <span class="typing-dot dot-1"></span>
+                <span class="typing-dot dot-2"></span>
+                <span class="typing-dot dot-3"></span>
+            </div>
+        </div>
+        """
+
+    if selected_detail_html and not is_typing:
         items_html += selected_detail_html
 
     html = f"""
@@ -2015,6 +2027,47 @@ def render_chat_panel(
             border: 1px solid rgba(20, 20, 20, 0.20);
             border-bottom-left-radius: 5px;
             box-shadow: none;
+        }}
+
+        .typing-bubble {{
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            min-width: 54px;
+            height: 34px;
+            padding: 9px 13px;
+        }}
+
+        .typing-dot {{
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #1F78B4;
+            display: inline-block;
+            animation: typingBounce 1.05s infinite ease-in-out;
+        }}
+
+        .typing-dot.dot-1 {{
+            animation-delay: 0s;
+        }}
+
+        .typing-dot.dot-2 {{
+            animation-delay: 0.16s;
+        }}
+
+        .typing-dot.dot-3 {{
+            animation-delay: 0.32s;
+        }}
+
+        @keyframes typingBounce {{
+            0%, 80%, 100% {{
+                transform: translateY(0);
+                opacity: 0.42;
+            }}
+            40% {{
+                transform: translateY(-7px);
+                opacity: 1;
+            }}
         }}
 
         .selected-detail-card {{
@@ -2125,7 +2178,9 @@ def render_chat_panel(
         <script>
             const box = document.getElementById("chatbox");
             if (box) {{
-                box.scrollTop = box.scrollHeight;
+                requestAnimationFrame(() => {{
+                    box.scrollTop = box.scrollHeight;
+                }});
             }}
         </script>
     </body>
@@ -2684,10 +2739,14 @@ with chat_col:
             kicker="AI ASSISTANT",
         )
 
-        render_chat_panel(
-            messages=st.session_state.messages,
-            selected_detail_html=selected_detail_html,
-        )
+        chat_placeholder = st.empty()
+
+        with chat_placeholder:
+            render_chat_panel(
+                messages=st.session_state.messages,
+                selected_detail_html=selected_detail_html,
+                is_typing=False,
+            )
 
         with st.form("chat_form", clear_on_submit=True):
             user_text = st.text_input(
@@ -2699,8 +2758,24 @@ with chat_col:
 
         if submitted and user_text.strip():
             clean_user_text = user_text.strip()
-            st.session_state.messages.append({"role": "user", "content": clean_user_text})
 
+            # 1. 사용자 질문을 즉시 메시지에 추가
+            st.session_state.messages.append(
+                {
+                    "role": "user",
+                    "content": clean_user_text,
+                }
+            )
+
+            # 2. LLM 처리 전에 채팅창을 먼저 갱신해서 질문 + typing indicator 표시
+            with chat_placeholder:
+                render_chat_panel(
+                    messages=st.session_state.messages,
+                    selected_detail_html=None,
+                    is_typing=True,
+                )
+
+            # 3. 자연어 질의 파싱
             parsed = parse_user_query(
                 text=clean_user_text,
                 pred=pred,
@@ -2710,19 +2785,37 @@ with chat_col:
                 fallback_zone_id=st.session_state.selected_zone_id,
             )
 
+            # 4. 잘못된 질의일 경우에도 typing 상태 이후 답변 생성
             if not parsed["ok"]:
-                st.session_state.pending_invalid_query = {
-                    "user_text": clean_user_text,
-                    "reason_message": parsed["message"],
-                    "reason": parsed["reason"],
-                    "llm_extract": parsed.get("llm_extract"),
-                }
+                answer = build_invalid_answer(
+                    user_text=clean_user_text,
+                    reason_message=parsed["message"],
+                    reason=parsed["reason"],
+                    llm_extract=parsed.get("llm_extract"),
+                    messages=st.session_state.messages,
+                    pred=pred,
+                )
+
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": answer,
+                    }
+                )
 
                 st.session_state.show_selected_detail = False
                 st.session_state.animate_zoom = False
 
-                st.rerun()
+                with chat_placeholder:
+                    render_chat_panel(
+                        messages=st.session_state.messages,
+                        selected_detail_html=None,
+                        is_typing=False,
+                    )
 
+                st.stop()
+
+            # 5. 정상 질의일 경우 선택 상태 먼저 갱신
             if st.session_state.has_query:
                 st.session_state.previous_focus_zone_id = st.session_state.selected_zone_id
             else:
@@ -2734,6 +2827,9 @@ with chat_col:
             st.session_state.has_query = True
             st.session_state.show_selected_detail = True
             st.session_state.animate_zoom = True
+
+            # 6. 화면 전체가 바로 끊기지 않도록 pending_user_query만 저장하고,
+            #    현재 화면에서는 typing indicator를 보여준 뒤 다음 rerun에서 지도와 답변을 갱신
             st.session_state.pending_user_query = clean_user_text
 
             st.rerun()
