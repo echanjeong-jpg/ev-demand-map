@@ -79,14 +79,16 @@ st.markdown(
     .stApp {
         background: #FFFFFF !important;
         box-shadow: none !important;
+        overflow: visible !important;
     }
 
     .block-container {
-        padding-top: 0.65rem;
-        padding-bottom: 0.65rem;
-        padding-left: 1.15rem;
-        padding-right: 1.15rem;
+        padding-top: 0.85rem;
+        padding-bottom: 1.25rem;
+        padding-left: 1.35rem;
+        padding-right: 1.35rem;
         max-width: 1440px;
+        overflow: visible !important;
     }
 
     header[data-testid="stHeader"] {
@@ -110,26 +112,48 @@ st.markdown(
 
     div[data-testid="stVerticalBlock"] {
         gap: 0.42rem;
-    }
-
-    /*
-    핵심 수정:
-    내부 카드가 아니라 큰 3개 패널에만 진한 테두리와 외부 그림자 적용
-    */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF;
-        border-radius: 22px;
-        border: 1.8px solid rgba(20, 20, 20, 0.46);
-        box-shadow:
-            0 22px 34px rgba(0, 0, 0, 0.18),
-            0 8px 14px rgba(0, 0, 0, 0.08),
-            0 1px 0 rgba(255, 255, 255, 0.95) inset;
-        backdrop-filter: none;
         overflow: visible !important;
     }
 
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        border-radius: 22px;
+    div[data-testid="column"] {
+        padding: 10px 8px !important;
+        overflow: visible !important;
+    }
+
+    /*
+    기본 Streamlit border wrapper는 일단 평평하게 둔다.
+    실제 패널 그림자는 ev-panel-marker가 들어간 컨테이너에만 적용한다.
+    */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    /*
+    핵심:
+    각 큰 패널 내부에 ev-panel-marker를 넣고,
+    해당 marker를 포함한 border wrapper에만 about us 카드처럼 외부 그림자 적용.
+    */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.ev-panel-marker) {
+        background: #FFFFFF !important;
+        border-radius: 22px !important;
+        border: 1.45px solid rgba(20, 20, 20, 0.48) !important;
+        box-shadow:
+            0 24px 42px rgba(0, 0, 0, 0.20),
+            0 8px 18px rgba(0, 0, 0, 0.11),
+            0 1px 0 rgba(255, 255, 255, 0.96) inset !important;
+        overflow: visible !important;
+        position: relative !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.ev-panel-marker) > div {
+        overflow: visible !important;
+    }
+
+    .ev-panel-marker {
+        display: none;
     }
 
     .panel-kicker {
@@ -176,32 +200,6 @@ st.markdown(
         border-radius: 999px;
         background: linear-gradient(90deg, #E4EDF7, #86B3F7, #2E6BEA, #132D6B);
         box-shadow: none;
-    }
-
-    div[data-testid="stMetric"] {
-        background: #FAFAFA;
-        border: 1px solid rgba(20, 20, 20, 0.12);
-        border-radius: 16px;
-        padding: 10px 12px;
-        min-height: 82px;
-        box-shadow: none;
-    }
-
-    div[data-testid="stMetricLabel"] {
-        color: #777D86;
-        font-size: 11px;
-        font-weight: 600;
-    }
-
-    div[data-testid="stMetricValue"] {
-        color: #111111;
-        font-size: 20px;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-    }
-
-    div[data-testid="stMetricDelta"] {
-        font-size: 11px;
     }
 
     iframe {
@@ -281,6 +279,10 @@ st.markdown(
 # =========================================================
 # 화면 보조 함수
 # =========================================================
+def mark_panel() -> None:
+    st.markdown('<span class="ev-panel-marker"></span>', unsafe_allow_html=True)
+
+
 def panel_title(title: str, subtitle: str | None = None, kicker: str | None = None) -> None:
     kicker_html = f'<div class="panel-kicker">{kicker}</div>' if kicker else ""
 
@@ -558,41 +560,22 @@ def load_predictions(
     meta: Dict,
     true_path: Path | None = None,
 ) -> Tuple[pd.DataFrame, str, str | None]:
-    """
-    CSV / Parquet / NPY 예측 결과를 모두 지원하는 로더.
-
-    새 모델의 preds.npy가 (N, H, Z, 1) 형태라면,
-    서비스에서는 첫 번째 horizon, 즉 H=0만 사용합니다.
-    이후 기존 서비스와 동일하게
-    sample_idx, zone_idx, predicted_kwh 형태로 변환합니다.
-    """
-
     zone_ids = meta["zone_ids"]
     n_zones_meta = len(zone_ids)
     suffix = pred_path.suffix.lower()
 
-    # =====================================================
-    # 1) NPY 예측 결과 로딩
-    # =====================================================
     if suffix == ".npy":
         pred_arr = np.load(pred_path)
 
         if pred_arr.ndim == 4:
-            # (N, H, Z, 1) -> 첫 horizon 사용
             pred_arr = pred_arr[:, 0, :, 0]
-
         elif pred_arr.ndim == 3:
             if pred_arr.shape[-1] == 1:
-                # (N, Z, 1)
                 pred_arr = pred_arr[:, :, 0]
             else:
-                # (N, H, Z)로 들어온 경우 첫 horizon 사용
                 pred_arr = pred_arr[:, 0, :]
-
         elif pred_arr.ndim == 2:
-            # (N, Z)
             pass
-
         else:
             raise ValueError(
                 f"지원하지 않는 preds.npy shape입니다: {pred_arr.shape}. "
@@ -664,9 +647,6 @@ def load_predictions(
 
         return pred, "predicted_kwh", true_col
 
-    # =====================================================
-    # 2) CSV / Parquet 예측 결과 로딩
-    # =====================================================
     if suffix == ".csv":
         pred = pd.read_csv(pred_path)
     elif suffix in [".parquet", ".pq"]:
@@ -989,22 +969,22 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
         search_text = str(row.get("search_text_clean", ""))
 
         score = 0
-        tokens = [t for t in re.split(r"[,\s·/]+", clean_text(text)) if len(t) >= 2]
+        tokens = [t for t in re.split(r"[,\\s·/]+", clean_text(text)) if len(t) >= 2]
 
         if search_text and any(token in search_text for token in tokens):
             score += 5
 
-        for part in re.split(r"[,·/\s]+", label):
+        for part in re.split(r"[,·/\\s]+", label):
             part_clean = clean_text(part)
             if len(part_clean) >= 2 and part_clean in q:
                 score += 14
 
-        for part in re.split(r"[,·/\s()_]+", raw_label):
+        for part in re.split(r"[,·/\\s()_]+", raw_label):
             part_clean = clean_text(part)
             if len(part_clean) >= 2 and part_clean in q:
                 score += 12
 
-        for dong in re.split(r"[,·/\s]+", dongs):
+        for dong in re.split(r"[,·/\\s]+", dongs):
             dong_clean = clean_text(dong)
             if len(dong_clean) >= 2 and dong_clean in q:
                 score += 20
@@ -1596,7 +1576,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
-    # 실제 로테이션에는 8개까지 사용하되, 화면에는 4개 높이만 보이도록 설정
+    # 화면에는 4개가 보이고, 로테이션은 top 8개를 순환
     alert_rows = top_df.head(8).copy()
     cards_html = ""
 
@@ -1643,7 +1623,6 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         </div>
         """
 
-    # 무한 루프처럼 보이게 하기 위해 카드 복제
     loop_cards_html = cards_html + cards_html
     card_count = len(alert_rows)
 
@@ -1665,7 +1644,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
 
         .alert-stack-panel {{
             position: relative;
-            height: 504px;
+            height: 508px;
             overflow: hidden;
             box-sizing: border-box;
             padding: 4px 2px 0 0;
@@ -1673,8 +1652,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .alert-scroll-track {{
-            transform: translateY(0);
             will-change: transform;
+            transform: translateY(0);
         }}
 
         .ev-alert-card {{
@@ -1748,9 +1727,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             font-size: 15px;
             font-weight: 850;
             letter-spacing: -0.045em;
-            line-height: 1.28;
+            line-height: 1.25;
             word-break: keep-all;
-            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
@@ -1761,7 +1739,6 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             font-weight: 500;
             line-height: 1.35;
             word-break: keep-all;
-            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
@@ -1815,7 +1792,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             let index = 0;
             let isPausedByHover = false;
 
-            const MOVE_DURATION = 620;
+            const MOVE_DURATION = 650;
             const HOLD_DURATION = 1900;
 
             function getCards() {{
@@ -2622,7 +2599,6 @@ if st.session_state.has_query and st.session_state.show_selected_detail:
 
 # =========================================================
 # 메인 3분할 레이아웃
-# 왼쪽: 수요급증알림, 가운데: 지도, 오른쪽: 모도리
 # =========================================================
 alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
@@ -2632,6 +2608,8 @@ alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 # =========================================================
 with alert_col:
     with st.container(border=True, height=PANEL_HEIGHT):
+        mark_panel()
+
         panel_title(
             "수요 급증알림",
             "선택 시각 기준 충전수요가 높은 생활권을 보여줍니다.",
@@ -2646,6 +2624,8 @@ with alert_col:
 # =========================================================
 with map_col:
     with st.container(border=True, height=PANEL_HEIGHT):
+        mark_panel()
+
         header_left, header_right = st.columns([0.72, 0.28], gap="small")
 
         with header_left:
@@ -2696,6 +2676,8 @@ with map_col:
 # =========================================================
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
+        mark_panel()
+
         panel_title(
             "MODORI",
             "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.",
