@@ -82,8 +82,10 @@ st.markdown(
     }
 
     .block-container {
-        padding-top: 0.35rem;
-        padding-bottom: 0.35rem;
+        padding-top: 0.65rem;
+        padding-bottom: 0.65rem;
+        padding-left: 1.15rem;
+        padding-right: 1.15rem;
         max-width: 1440px;
     }
 
@@ -110,14 +112,24 @@ st.markdown(
         gap: 0.42rem;
     }
 
+    /*
+    핵심 수정:
+    내부 카드가 아니라 큰 3개 패널에만 진한 테두리와 외부 그림자 적용
+    */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF;
-        border-radius: 20px;
-        border: 1.15px solid rgba(25, 25, 25, 0.42);
+        border-radius: 22px;
+        border: 1.8px solid rgba(20, 20, 20, 0.46);
         box-shadow:
-            0 18px 30px rgba(0, 0, 0, 0.16),
-            0 2px 0 rgba(255, 255, 255, 0.95) inset;
+            0 22px 34px rgba(0, 0, 0, 0.18),
+            0 8px 14px rgba(0, 0, 0, 0.08),
+            0 1px 0 rgba(255, 255, 255, 0.95) inset;
         backdrop-filter: none;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        border-radius: 22px;
     }
 
     .panel-kicker {
@@ -1584,7 +1596,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
-    alert_rows = top_df.head(8).copy()
+    # 4개 알림 카드 고정 표시
+    alert_rows = top_df.head(4).copy()
     cards_html = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
@@ -1630,9 +1643,6 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         </div>
         """
 
-    loop_cards_html = cards_html + cards_html
-    card_count = len(alert_rows)
-
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -1646,6 +1656,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             padding: 0;
             background: transparent;
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            overflow: hidden;
         }}
 
         .alert-stack-panel {{
@@ -1653,41 +1664,21 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             height: 508px;
             overflow: hidden;
             box-sizing: border-box;
-            padding: 4px 2px 8px 0;
+            padding: 4px 2px 0 0;
             background: transparent;
         }}
 
-        .alert-stack-panel::before {{
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 22px;
-            z-index: 3;
-            pointer-events: none;
-            background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
-        }}
-
-        .alert-stack-panel::after {{
-            content: "";
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 30px;
-            z-index: 3;
-            pointer-events: none;
-            background: linear-gradient(0deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
-        }}
+        /*
+        하단 흐림 효과 제거:
+        before/after gradient 없음
+        */
 
         .alert-scroll-track {{
-            will-change: transform;
             transform: translateY(0);
         }}
 
         .ev-alert-card {{
-            min-height: 110px;
+            height: 112px;
             display: grid;
             grid-template-columns: 62px minmax(0, 1fr) 106px;
             align-items: center;
@@ -1759,6 +1750,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             letter-spacing: -0.045em;
             line-height: 1.28;
             word-break: keep-all;
+            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
@@ -1769,6 +1761,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             font-weight: 500;
             line-height: 1.35;
             word-break: keep-all;
+            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
@@ -1808,78 +1801,11 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     </style>
     </head>
     <body>
-        <div class="alert-stack-panel" id="alertPanel">
-            <div class="alert-scroll-track" id="alertTrack">
-                {loop_cards_html}
+        <div class="alert-stack-panel">
+            <div class="alert-scroll-track">
+                {cards_html}
             </div>
         </div>
-
-        <script>
-            const panel = document.getElementById("alertPanel");
-            const track = document.getElementById("alertTrack");
-            const originalCount = {card_count};
-
-            let index = 0;
-            let isPausedByHover = false;
-
-            const MOVE_DURATION = 620;
-            const HOLD_DURATION = 1900;
-
-            function getCards() {{
-                return Array.from(track.querySelectorAll(".ev-alert-card"));
-            }}
-
-            function getOffsetForIndex(targetIndex) {{
-                const cards = getCards();
-                if (!cards[targetIndex]) return 0;
-                return cards[targetIndex].offsetTop;
-            }}
-
-            function moveTo(targetIndex, withTransition = true) {{
-                const offset = getOffsetForIndex(targetIndex);
-
-                if (withTransition) {{
-                    track.style.transition = `transform ${{MOVE_DURATION}}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-                }} else {{
-                    track.style.transition = "none";
-                }}
-
-                track.style.transform = `translateY(-${{offset}}px)`;
-            }}
-
-            function resetIfNeeded() {{
-                if (index >= originalCount) {{
-                    index = 0;
-                    moveTo(0, false);
-                    void track.offsetHeight;
-                }}
-            }}
-
-            function tick() {{
-                if (isPausedByHover) {{
-                    setTimeout(tick, HOLD_DURATION);
-                    return;
-                }}
-
-                index += 1;
-                moveTo(index, true);
-
-                setTimeout(() => {{
-                    resetIfNeeded();
-                    setTimeout(tick, HOLD_DURATION);
-                }}, MOVE_DURATION);
-            }}
-
-            panel.addEventListener("mouseenter", () => {{
-                isPausedByHover = true;
-            }});
-
-            panel.addEventListener("mouseleave", () => {{
-                isPausedByHover = false;
-            }});
-
-            setTimeout(tick, HOLD_DURATION);
-        </script>
     </body>
     </html>
     """
@@ -1950,7 +1876,6 @@ def render_chat_panel(
 ) -> None:
     items_html = ""
 
-    # 모든 대화 메시지를 표시하고, 내부 스크롤을 허용
     visible_messages = messages
 
     for msg in visible_messages:
