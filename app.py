@@ -65,8 +65,7 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Holtwood+One+SC&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
@@ -74,15 +73,13 @@ st.markdown(
 
     .stApp {
         background: #FFFFFF !important;
+        box-shadow: none !important;
     }
 
     .block-container {
-        padding-top: 0.7rem;
-        padding-bottom: 1.2rem;
-        padding-left: 1.2rem;
-        padding-right: 1.2rem;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
         max-width: 1440px;
-        overflow: visible !important;
     }
 
     header[data-testid="stHeader"] {
@@ -104,70 +101,50 @@ st.markdown(
         display: none;
     }
 
-    /* =========================================================
-       큰 3개 섹션 카드 그림자
-       - 수요 급증 알림
-       - 충전수요지도
-       - MODORI
-    ========================================================= */
-    div[data-testid="column"],
-    div[data-testid="stVerticalBlock"],
-    div[data-testid="stHorizontalBlock"],
-    div[data-testid="stVerticalBlockBorderWrapper"],
-    div[data-testid="stElementContainer"] {
-        overflow: visible !important;
-    }
-
-    div[data-testid="stHorizontalBlock"] {
-        gap: 1.05rem !important;
-    }
-
-    div[data-testid="column"] {
-        padding: 0 0.12rem !important;
-    }
-
     div[data-testid="stVerticalBlock"] {
         gap: 0.42rem;
     }
 
+    /*
+    핵심:
+    내부 카드가 아니라 큰 3개 패널에만 그림자 적용
+    */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: #FFFFFF !important;
-        border-radius: 20px !important;
-        border: 1.15px solid rgba(25, 25, 25, 0.36) !important;
+        background: #FFFFFF;
+        border-radius: 20px;
+        border: 1.15px solid rgba(25, 25, 25, 0.42);
         box-shadow:
-            18px 22px 32px rgba(0, 0, 0, 0.18),
-            0 2px 0 rgba(255, 255, 255, 0.95) inset !important;
-        backdrop-filter: none !important;
-        overflow: visible !important;
+            0 18px 30px rgba(0, 0, 0, 0.16),
+            0 2px 0 rgba(255, 255, 255, 0.95) inset;
+        backdrop-filter: none;
     }
 
     .panel-kicker {
-        font-family: 'Holtwood One SC', Georgia, serif;
         color: #1F78B4;
+        font-family: "Holtwood One SC", Georgia, serif;
         font-size: 12px;
         font-weight: 400;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.015em;
         line-height: 1;
         margin-bottom: 6px;
         text-transform: uppercase;
     }
 
     .panel-title {
-        color: #050505;
-        font-size: 23px;
+        color: #111111;
+        font-size: 22px;
         font-weight: 900;
         letter-spacing: -0.06em;
-        margin-bottom: 2px;
-        line-height: 1.05;
+        margin-bottom: 3px;
+        line-height: 1.12;
     }
 
     .panel-subtitle {
-        color: #30343B;
-        font-size: 12.2px;
+        color: #5F666F;
+        font-size: 12px;
         font-weight: 500;
-        margin-bottom: 8px;
-        line-height: 1.42;
-        letter-spacing: -0.035em;
+        margin-bottom: 10px;
+        line-height: 1.35;
     }
 
     .legend-wrap {
@@ -175,42 +152,36 @@ st.markdown(
         align-items: center;
         gap: 9px;
         margin-top: 8px;
-        color: #343941;
-        font-weight: 500;
+        color: #555C66;
+        font-weight: 600;
         font-size: 12px;
     }
 
     .legend-bar {
-        height: 9px;
+        height: 8px;
         flex: 1;
         border-radius: 999px;
-        background: linear-gradient(90deg, #DDEBFA, #76A8FF, #2E6BEA, #132D6B);
+        background: linear-gradient(90deg, #E4EDF7, #86B3F7, #2E6BEA, #132D6B);
         box-shadow: none;
     }
 
-    iframe {
-        border-radius: 16px !important;
-        box-shadow: none !important;
-        border: none !important;
-    }
-
     div[data-testid="stMetric"] {
-        background: #FFFFFF;
-        border: 1px solid #E4E7EC;
+        background: #FAFAFA;
+        border: 1px solid rgba(20, 20, 20, 0.12);
         border-radius: 16px;
         padding: 10px 12px;
         min-height: 82px;
-        box-shadow: none !important;
+        box-shadow: none;
     }
 
     div[data-testid="stMetricLabel"] {
-        color: #7A8797;
+        color: #777D86;
         font-size: 11px;
         font-weight: 600;
     }
 
     div[data-testid="stMetricValue"] {
-        color: #172033;
+        color: #111111;
         font-size: 20px;
         font-weight: 800;
         letter-spacing: -0.04em;
@@ -220,6 +191,12 @@ st.markdown(
         font-size: 11px;
     }
 
+    iframe {
+        border-radius: 16px;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
     div[data-testid="stTextInput"] {
         margin-bottom: 0rem;
     }
@@ -227,22 +204,22 @@ st.markdown(
     div[data-testid="stTextInput"] > div {
         background: #FFFFFF !important;
         border-radius: 14px !important;
-        border: 1px solid #D4E0ED !important;
+        border: 1px solid rgba(20, 20, 20, 0.18) !important;
         box-shadow: none !important;
     }
 
     div[data-testid="stTextInput"] input {
         background: #FFFFFF !important;
-        color: #172033 !important;
+        color: #111111 !important;
         border-radius: 14px !important;
         min-height: 40px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         border: none !important;
     }
 
     div[data-testid="stTextInput"] input::placeholder {
-        color: #8A96A7 !important;
+        color: #8A8F98 !important;
         opacity: 1 !important;
         font-weight: 500;
     }
@@ -256,22 +233,22 @@ st.markdown(
     div[data-testid="stFormSubmitButton"] button {
         border-radius: 13px;
         min-height: 40px;
-        font-weight: 800;
+        font-weight: 850;
         background: #1F78B4;
         color: white;
         border: 0;
         margin-top: -0.15rem;
-        box-shadow: none !important;
+        box-shadow: none;
     }
 
     div[data-testid="stFormSubmitButton"] button:hover {
-        background: #17699F;
+        background: #17669B;
         color: white;
         border: 0;
     }
 
     div[data-testid="stToggle"] label {
-        color: #263246 !important;
+        color: #111111 !important;
         font-weight: 700 !important;
     }
 
@@ -293,16 +270,24 @@ st.markdown(
 # =========================================================
 def panel_title(title: str, subtitle: str | None = None, kicker: str | None = None) -> None:
     kicker_html = f'<div class="panel-kicker">{kicker}</div>' if kicker else ""
-    subtitle_html = f'<div class="panel-subtitle">{subtitle}</div>' if subtitle else ""
 
-    st.markdown(
-        f"""
-        {kicker_html}
-        <div class="panel-title">{title}</div>
-        {subtitle_html}
-        """,
-        unsafe_allow_html=True,
-    )
+    if subtitle:
+        st.markdown(
+            f"""
+            {kicker_html}
+            <div class="panel-title">{title}</div>
+            <div class="panel-subtitle">{subtitle}</div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f"""
+            {kicker_html}
+            <div class="panel-title">{title}</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_legend() -> None:
@@ -789,6 +774,8 @@ intent 규칙:
 예시 규칙:
 - 사용자에게 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
   "{FIXED_QUERY_EXAMPLE}"
+- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
+- 충전수요 조회 예시는 반드시 연도, 월, 일, 시간, 위치를 모두 포함해야 한다.
 """
 
     user_prompt = f"""
@@ -853,6 +840,7 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
             cand_norm = cand_norm.replace("생활권경계", "생활권경계_")
 
         match = area_info[area_info["생활권역ID"] == cand_norm]
+
         if not match.empty:
             return match["생활권역ID"].iloc[0]
 
@@ -1164,7 +1152,9 @@ def prepare_map_payload(
         lambda x: [255, 60, 60, 255] if bool(x) else [255, 255, 255, 185]
     )
 
-    gdf["line_width"] = gdf["is_focus"].apply(lambda x: 90 if bool(x) else 20)
+    gdf["line_width"] = gdf["is_focus"].apply(
+        lambda x: 90 if bool(x) else 20
+    )
 
     for col in ["zone_idx", "sample_idx", "global_time_idx", "daily_slot"]:
         if col in gdf.columns:
@@ -1277,15 +1267,17 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 border-radius: 16px;
                 overflow: hidden;
                 background: #FFFFFF;
-                box-shadow: none !important;
+                border: none;
+                box-shadow: none;
             }}
 
             .deck-tooltip {{
                 font-size: 12px !important;
-                border-radius: 12px !important;
-                padding: 10px !important;
-                background: rgba(20, 30, 45, 0.92) !important;
+                border-radius: 13px !important;
+                padding: 10px 12px !important;
+                background: rgba(17, 17, 17, 0.92) !important;
                 color: #FFFFFF !important;
+                box-shadow: none !important;
             }}
         </style>
     </head>
@@ -1478,42 +1470,40 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         value = float(getattr(row, "predicted_kwh"))
 
         if i == 1:
-            state = "급증"
+            state = "PEAK"
+            state_kr = "급증"
             state_class = "hot"
-            title = "PEAK"
-            sub = "최고 수요 권역"
-            desc = "충전 대기 가능성을 확인하세요"
+            title = "가장 높은 충전수요가 예상됩니다"
         elif i <= 3:
-            state = "주의"
+            state = "WATCH"
+            state_kr = "주의"
             state_class = "watch"
-            title = "WATCH"
-            sub = "운영 여유 확인"
-            desc = "충전기 운영 여유를 확인하세요"
+            title = "충전기 운영 여유를 확인하세요"
         else:
-            state = "관찰"
+            state = "MONITOR"
+            state_kr = "관찰"
             state_class = "monitor"
-            title = "MONITOR"
-            sub = "수요 변화 관찰"
-            desc = "시간대별 변화를 함께 확인하세요"
+            title = "수요 변화를 함께 모니터링하세요"
 
         cards_html += f"""
-        <div class="traffic-alert-card">
-            <div class="state-circle {state_class}">
-                <span>{state}</span>
+        <div class="ev-alert-card">
+            <div class="alert-left">
+                <div class="state-circle {state_class}">
+                    <span>{state_kr}</span>
+                </div>
             </div>
 
-            <div class="alert-content">
-                <div class="zone-kicker {state_class}">{escape_html(title)}</div>
-                <div class="zone-title">{escape_html(label)}</div>
-                <div class="zone-sub">{escape_html(sub)}</div>
-                <div class="zone-desc">{escape_html(desc)}</div>
+            <div class="alert-center">
+                <div class="alert-brand {state_class}">{state}</div>
+                <div class="alert-zone">{escape_html(label)}</div>
+                <div class="alert-copy">{escape_html(title)}</div>
             </div>
 
-            <div class="alert-side">
-                <div class="chip-label">예측수요</div>
-                <div class="chip-value">{value:,.1f} kWh</div>
-                <div class="chip-label second">시간</div>
-                <div class="chip-value">{selected_time}</div>
+            <div class="alert-right">
+                <div class="right-label">예측수요</div>
+                <div class="right-value">{value:,.1f} kWh</div>
+                <div class="right-label time">시간</div>
+                <div class="right-value">{selected_time}</div>
             </div>
         </div>
         """
@@ -1527,6 +1517,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     <head>
     <meta charset="utf-8" />
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
+
         html, body {{
             margin: 0;
             padding: 0;
@@ -1549,7 +1541,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             top: 0;
             left: 0;
             right: 0;
-            height: 18px;
+            height: 22px;
             z-index: 3;
             pointer-events: none;
             background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
@@ -1561,7 +1553,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             bottom: 0;
             left: 0;
             right: 0;
-            height: 28px;
+            height: 30px;
             z-index: 3;
             pointer-events: none;
             background: linear-gradient(0deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
@@ -1572,38 +1564,37 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             transform: translateY(0);
         }}
 
-        .traffic-alert-card {{
-            min-height: 104px;
+        .ev-alert-card {{
+            min-height: 110px;
             display: grid;
-            grid-template-columns: 62px minmax(0, 1fr) 108px;
+            grid-template-columns: 62px minmax(0, 1fr) 106px;
             align-items: center;
-            gap: 12px;
+            gap: 13px;
             background: #FFFFFF;
-            border: 1px solid #E3E3E3;
+            border: 1.1px solid rgba(20, 20, 20, 0.20);
             border-radius: 18px;
-            padding: 13px 14px;
+            padding: 14px 14px;
             box-sizing: border-box;
-            margin-bottom: 12px;
-            box-shadow: none !important;
+            margin-bottom: 14px;
+            box-shadow: none;
         }}
 
         .state-circle {{
-            width: 54px;
-            height: 54px;
+            width: 55px;
+            height: 55px;
             border-radius: 999px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #FFFFFF;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 800;
             letter-spacing: -0.035em;
-            flex-shrink: 0;
-            box-shadow: none !important;
+            box-shadow: none;
         }}
 
         .state-circle.hot {{
-            background: #FF3D4E;
+            background: #FF3F4F;
         }}
 
         .state-circle.watch {{
@@ -1611,102 +1602,86 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .state-circle.monitor {{
-            background: #65758A;
+            background: #657386;
         }}
 
-        .alert-content {{
+        .alert-center {{
             min-width: 0;
-            overflow: visible;
         }}
 
-        .zone-kicker {{
-            font-family: 'Holtwood One SC', Georgia, serif;
-            font-size: 10.8px;
+        .alert-brand {{
+            font-family: "Holtwood One SC", Georgia, serif;
+            font-size: 11px;
             font-weight: 400;
-            letter-spacing: -0.01em;
+            letter-spacing: -0.02em;
             line-height: 1;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }}
 
-        .zone-kicker.hot {{
-            color: #FF3D4E;
+        .alert-brand.hot {{
+            color: #FF3F4F;
         }}
 
-        .zone-kicker.watch {{
+        .alert-brand.watch {{
             color: #F5A000;
         }}
 
-        .zone-kicker.monitor {{
-            color: #65758A;
+        .alert-brand.monitor {{
+            color: #657386;
         }}
 
-        .zone-title {{
-            color: #050505;
-            font-size: 14.5px;
-            font-weight: 800;
+        .alert-zone {{
+            color: #111111;
+            font-size: 15px;
+            font-weight: 850;
             letter-spacing: -0.045em;
             line-height: 1.28;
             word-break: keep-all;
-            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
-        .zone-sub {{
-            margin-top: 5px;
-            color: #20242B;
-            font-size: 12.5px;
-            font-weight: 600;
-            line-height: 1.32;
-            word-break: keep-all;
-            overflow-wrap: anywhere;
-            white-space: normal;
-        }}
-
-        .zone-desc {{
-            margin-top: 4px;
-            color: #596575;
-            font-size: 11.2px;
+        .alert-copy {{
+            margin-top: 6px;
+            color: #555C66;
+            font-size: 11.4px;
             font-weight: 500;
             line-height: 1.35;
             word-break: keep-all;
-            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
-        .alert-side {{
+        .alert-right {{
             display: grid;
-            grid-template-columns: auto;
             justify-items: end;
             align-items: center;
-            min-width: 104px;
         }}
 
-        .chip-label {{
+        .right-label {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
             min-width: 70px;
             height: 21px;
             border-radius: 999px;
-            background: #A0A0A0;
+            background: #9A9A9A;
             color: #FFFFFF;
-            font-size: 10.5px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 650;
             line-height: 1;
         }}
 
-        .chip-label.second {{
-            margin-top: 6px;
+        .right-label.time {{
+            margin-top: 8px;
         }}
 
-        .chip-value {{
-            color: #050505;
+        .right-value {{
+            color: #111111;
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 750;
             line-height: 1.15;
-            margin-top: 4px;
+            margin-top: 5px;
             white-space: nowrap;
-            letter-spacing: -0.015em;
+            letter-spacing: -0.02em;
         }}
     </style>
     </head>
@@ -1729,7 +1704,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             const HOLD_DURATION = 1900;
 
             function getCards() {{
-                return Array.from(track.querySelectorAll(".traffic-alert-card"));
+                return Array.from(track.querySelectorAll(".ev-alert-card"));
             }}
 
             function getOffsetForIndex(targetIndex) {{
@@ -1807,7 +1782,7 @@ def build_selected_detail_html(
     <div class="selected-detail-card">
         <div class="detail-card-header">
             <div>
-                <div class="detail-card-kicker">선택 생활권 상세</div>
+                <div class="detail-card-kicker">SELECTED AREA</div>
                 <div class="detail-card-title">{escape_html(selected_label)}</div>
                 <div class="detail-card-id">{escape_html(selected_zone_id)}</div>
             </div>
@@ -1853,7 +1828,11 @@ def render_chat_panel(
 ) -> None:
     items_html = ""
 
-    for msg in messages:
+    # 내부 스크롤 제거를 위해 최근 메시지만 표시
+    # 너무 많은 대화가 쌓여도 iframe 내부에서 스크롤이 생기지 않도록 제한
+    visible_messages = messages[-4:] if len(messages) > 4 else messages
+
+    for msg in visible_messages:
         role = msg.get("role", "assistant")
         content = escape_html(msg.get("content", ""))
         role_class = "user" if role == "user" else "assistant"
@@ -1873,11 +1852,14 @@ def render_chat_panel(
     <head>
     <meta charset="utf-8" />
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
+
         html, body {{
             margin: 0;
             padding: 0;
             background: transparent;
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            overflow: hidden;
         }}
 
         .chat-scroll-box {{
@@ -1885,14 +1867,14 @@ def render_chat_panel(
             overflow: hidden;
             padding: 8px 4px 8px 2px;
             box-sizing: border-box;
-            border-top: 1px solid #EEF2F7;
-            border-bottom: 1px solid #EEF2F7;
+            border-top: 1px solid rgba(20, 20, 20, 0.08);
+            border-bottom: 1px solid rgba(20, 20, 20, 0.08);
             background: transparent;
         }}
 
         .chat-bubble-row {{
             display: flex;
-            margin-bottom: 10px;
+            margin-bottom: 11px;
         }}
 
         .chat-bubble-row.user {{
@@ -1905,80 +1887,83 @@ def render_chat_panel(
 
         .chat-bubble {{
             max-width: 88%;
-            border-radius: 15px;
-            padding: 10px 12px;
+            border-radius: 16px;
+            padding: 11px 13px;
             font-size: 12px;
-            font-weight: 600;
-            line-height: 1.52;
+            font-weight: 560;
+            line-height: 1.58;
             word-break: keep-all;
             box-sizing: border-box;
-            box-shadow: none !important;
         }}
 
         .chat-bubble.user {{
             background: #1F78B4;
             color: #FFFFFF;
             border-bottom-right-radius: 5px;
+            box-shadow: none;
         }}
 
         .chat-bubble.assistant {{
             background: #FFFFFF;
             color: #111111;
-            border: 1px solid #E0E0E0;
+            border: 1px solid rgba(20, 20, 20, 0.20);
             border-bottom-left-radius: 5px;
+            box-shadow: none;
         }}
 
         .selected-detail-card {{
-            margin: 12px 2px 8px 2px;
-            padding: 13px;
-            border-radius: 17px;
-            border: 1px solid #E0E0E0;
+            margin: 13px 2px 8px 2px;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1.1px solid rgba(20, 20, 20, 0.22);
             background: #FFFFFF;
-            box-shadow: none !important;
+            box-shadow: none;
             box-sizing: border-box;
         }}
 
         .detail-card-kicker {{
-            color: #6F7C8D;
+            color: #1F78B4;
+            font-family: "Holtwood One SC", Georgia, serif;
             font-size: 11px;
-            font-weight: 800;
-            margin-bottom: 3px;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            margin-bottom: 5px;
         }}
 
         .detail-card-title {{
-            color: #172033;
+            color: #111111;
             font-size: 18px;
-            font-weight: 800;
+            font-weight: 850;
             letter-spacing: -0.045em;
             line-height: 1.25;
         }}
 
         .detail-card-id {{
-            color: #178554;
-            font-size: 11.5px;
-            font-weight: 700;
+            color: #5F666F;
+            font-size: 11px;
+            font-weight: 600;
             margin-top: 4px;
         }}
 
         .detail-card-meta {{
-            margin-top: 10px;
+            margin-top: 11px;
             display: flex;
             flex-direction: column;
             gap: 7px;
         }}
 
         .meta-label {{
-            color: #7A8797;
+            color: #777D86;
             font-size: 10.5px;
-            font-weight: 700;
+            font-weight: 650;
             margin-bottom: 2px;
         }}
 
         .meta-text {{
-            color: #4D5A6B;
+            color: #333333;
             font-size: 11.5px;
             font-weight: 500;
-            line-height: 1.38;
+            line-height: 1.42;
             word-break: keep-all;
         }}
 
@@ -1990,26 +1975,26 @@ def render_chat_panel(
         }}
 
         .detail-metric {{
-            background: #FFFFFF;
-            border: 1px solid #E4ECF5;
+            background: #FAFAFA;
+            border: 1px solid rgba(20, 20, 20, 0.12);
             border-radius: 13px;
             padding: 9px 10px;
             min-height: 58px;
             box-sizing: border-box;
-            box-shadow: none !important;
+            box-shadow: none;
         }}
 
         .metric-label {{
-            color: #7A8797;
+            color: #777D86;
             font-size: 10.5px;
             font-weight: 600;
             margin-bottom: 4px;
         }}
 
         .metric-value {{
-            color: #172033;
+            color: #111111;
             font-size: 17px;
-            font-weight: 800;
+            font-weight: 820;
             letter-spacing: -0.04em;
         }}
 
@@ -2018,8 +2003,8 @@ def render_chat_panel(
             margin-top: 4px;
             padding: 2px 6px;
             border-radius: 999px;
-            background: #EAF8EF;
-            color: #178554;
+            background: #EAF4FA;
+            color: #1F78B4;
             font-size: 10.5px;
             font-weight: 700;
         }}
@@ -2029,10 +2014,6 @@ def render_chat_panel(
         <div class="chat-scroll-box" id="chatbox">
             {items_html}
         </div>
-        <script>
-            const box = document.getElementById("chatbox");
-            box.scrollTop = box.scrollHeight;
-        </script>
     </body>
     </html>
     """
@@ -2077,15 +2058,24 @@ def build_conversational_answer(
     system_prompt = f"""
 너는 서울시 생활권별 전기차 충전수요 예측 서비스 E-Vlog의 대화형 LLM '모도리'다.
 
+너는 단순 안내 챗봇이 아니라, 사용자의 질문 의도를 이해해서 자연스럽게 답해야 한다.
+다만 예측 수치, 순위, 피크 시간 등 데이터 기반 정보는 제공된 데이터에서 조회된 경우에만 말할 수 있다.
+
 답변 규칙:
-- 사용자의 질문 의도를 이해해서 자연스럽게 답한다.
-- 예측 수치, 순위, 피크 시간 등 데이터 기반 정보는 조회된 경우에만 말한다.
+- 사용자가 서비스 작동 방식, 데이터, 모델, 지도, 예측 방식에 대해 물으면 구체적으로 설명한다.
+- 사용자가 인사하면 자연스럽게 인사한다.
+- 사용자가 장난, 욕설, 무관한 말을 하면 짧게 받아주고 서비스 맥락으로 부드럽게 돌린다.
+- 사용자가 날짜, 시간, 위치 없이 수요를 물으면 부족한 항목만 되묻는다.
 - 매번 같은 안내문을 반복하지 않는다.
 - 한국어로 답변한다.
 - 3~7문장 정도로 답변한다.
 - 예측값은 절대 임의로 만들지 않는다.
-- 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
+
+예시 규칙:
+- 사용자에게 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
   "{FIXED_QUERY_EXAMPLE}"
+- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
+- 충전수요 조회에는 연도, 월, 일, 시간, 위치가 모두 필요하다고 안내한다.
 """
 
     user_prompt = f"""
@@ -2104,7 +2094,11 @@ LLM 해석 결과:
 
 서비스 정보:
 - 이 서비스는 서울시 생활권별 전기차 충전수요를 예측하는 서비스다.
+- 사용자는 날짜, 시간, 위치를 자연어로 입력할 수 있다.
 - 정확한 조회를 위해서는 연도, 월, 일, 시간, 위치가 모두 필요하다.
+- 시스템은 사용자의 문장에서 날짜, 시간, 위치를 해석한다.
+- 이후 GitHub/앱에 포함된 예측 CSV에서 해당 조건의 predicted_kwh 값을 조회한다.
+- 지도는 해당 생활권을 확대하고, 3D 막대로 수요 크기를 시각화한다.
 - 예측 데이터 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지다.
 - 30분 단위 시간대만 조회할 수 있다.
 - 서울시 생활권 경계 데이터에 포함된 위치만 조회할 수 있다.
@@ -2136,11 +2130,14 @@ LLM 해석 결과:
         )
 
     if reason in {"missing_conditions", "missing_date", "missing_time", "location_unavailable", "date_unavailable", "time_unavailable"}:
-        return f"{reason_message}\n\n예: {FIXED_QUERY_EXAMPLE}"
+        return (
+            f"{reason_message}\n\n"
+            f"예: {FIXED_QUERY_EXAMPLE}"
+        )
 
     return (
         "저는 전기차 충전수요 예측을 도와주는 모도리입니다.\n\n"
-        "서울시 생활권별 충전수요를 날짜와 시간 기준으로 찾아 설명할 수 있습니다. "
+        "잡담도 이해할 수 있지만, 가장 잘할 수 있는 일은 서울시 생활권별 충전수요를 날짜와 시간 기준으로 찾아 설명하는 것입니다. "
         "정확한 조회를 위해 연도, 월, 일, 시간, 위치를 함께 입력해 주세요.\n\n"
         f"예: {FIXED_QUERY_EXAMPLE}"
     )
@@ -2210,17 +2207,22 @@ def build_llm_answer(
 
     system_prompt = f"""
 너는 E-Vlog 서비스의 전기차 충전수요 분석 LLM '모도리'다.
-수요 예측 수치와 관련된 내용은 반드시 제공된 facts만 근거로 답변한다.
+너는 실제 LLM처럼 자연스럽게 대화하되, 수요 예측 수치와 관련된 내용은 반드시 제공된 facts만 근거로 답변한다.
 
-규칙:
+중요 규칙:
 - facts에 없는 예측값, 순위, 원인, 외부 사건은 절대 만들지 않는다.
 - 사용자의 질문에 직접 답한다.
-- 최근 대화 맥락을 참고한다.
+- 사용자가 짧게 물어봐도 자연스럽게 맥락을 보완해 설명한다.
+- 사용자가 후속 질문을 하면 최근 대화 맥락을 참고한다.
+- 지도에서 해당 생활권이 강조된다는 점을 필요할 때만 언급한다.
 - 한국어로 답변한다.
 - 4~8문장 정도로 답변한다.
 - 수치는 facts 값 그대로 사용한다.
+
+예시 규칙:
 - 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
   "{FIXED_QUERY_EXAMPLE}"
+- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
 """
 
     user_prompt = f"""
@@ -2476,6 +2478,7 @@ if st.session_state.has_query and st.session_state.show_selected_detail:
 
 # =========================================================
 # 메인 3분할 레이아웃
+# 왼쪽: 수요급증알림, 가운데: 지도, 오른쪽: 모도리
 # =========================================================
 alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
@@ -2486,8 +2489,8 @@ alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 with alert_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
-            title="수요 급증알림",
-            subtitle="선택 시각 기준 충전수요가 높은 생활권을 보여줍니다.",
+            "수요 급증알림",
+            "선택 시각 기준 충전수요가 높은 생활권을 보여줍니다.",
             kicker="DEMAND WATCH",
         )
 
@@ -2503,8 +2506,10 @@ with map_col:
 
         with header_left:
             panel_title(
-                title="충전수요지도",
-                subtitle=f"{selected_dt:%Y-%m-%d %H:%M} · 서울시 생활권별 예측 충전수요",
+                "충전수요지도",
+                (
+                    f"{selected_dt:%Y-%m-%d %H:%M} · 서울시 생활권별 예측 충전수요"
+                ),
                 kicker="E-VLOG MAP",
             )
 
@@ -2548,8 +2553,8 @@ with map_col:
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
-            title="MODORI",
-            subtitle="연도, 월, 일, 시간, 위치를 자연어로 입력하세요.",
+            "MODORI",
+            "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.",
             kicker="AI ASSISTANT",
         )
 
