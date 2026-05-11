@@ -110,6 +110,19 @@ st.markdown(
         display: none;
     }
 
+    div[data-testid="stStatusWidget"] {
+        visibility: hidden !important;
+        height: 0 !important;
+    }
+
+    div[data-testid="stDecoration"] {
+        display: none !important;
+    }
+
+    .stApp > div:first-child {
+        background: transparent !important;
+    }
+
     div[data-testid="stVerticalBlock"] {
         gap: 0.42rem;
         overflow: visible !important;
@@ -120,10 +133,6 @@ st.markdown(
         overflow: visible !important;
     }
 
-    /*
-    기본 Streamlit border wrapper는 일단 평평하게 둔다.
-    실제 패널 그림자는 ev-panel-marker가 들어간 컨테이너에만 적용한다.
-    */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: transparent !important;
         border: none !important;
@@ -131,18 +140,13 @@ st.markdown(
         overflow: visible !important;
     }
 
-    /*
-    핵심:
-    각 큰 패널 내부에 ev-panel-marker를 넣고,
-    해당 marker를 포함한 border wrapper에만 about us 카드처럼 외부 그림자 적용.
-    */
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.ev-panel-marker) {
         background: #FFFFFF !important;
         border-radius: 22px !important;
-        border: 1.45px solid rgba(20, 20, 20, 0.48) !important;
+        border: 1.6px solid rgba(20, 20, 20, 0.56) !important;
         box-shadow:
-            0 24px 42px rgba(0, 0, 0, 0.20),
-            0 8px 18px rgba(0, 0, 0, 0.11),
+            0 26px 44px rgba(0, 0, 0, 0.22),
+            0 9px 18px rgba(0, 0, 0, 0.13),
             0 1px 0 rgba(255, 255, 255, 0.96) inset !important;
         overflow: visible !important;
         position: relative !important;
@@ -969,22 +973,22 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
         search_text = str(row.get("search_text_clean", ""))
 
         score = 0
-        tokens = [t for t in re.split(r"[,\\s·/]+", clean_text(text)) if len(t) >= 2]
+        tokens = [t for t in re.split(r"[,\s·/]+", clean_text(text)) if len(t) >= 2]
 
         if search_text and any(token in search_text for token in tokens):
             score += 5
 
-        for part in re.split(r"[,·/\\s]+", label):
+        for part in re.split(r"[,·/\s]+", label):
             part_clean = clean_text(part)
             if len(part_clean) >= 2 and part_clean in q:
                 score += 14
 
-        for part in re.split(r"[,·/\\s()_]+", raw_label):
+        for part in re.split(r"[,·/\s()_]+", raw_label):
             part_clean = clean_text(part)
             if len(part_clean) >= 2 and part_clean in q:
                 score += 12
 
-        for dong in re.split(r"[,·/\\s]+", dongs):
+        for dong in re.split(r"[,·/\s]+", dongs):
             dong_clean = clean_text(dong)
             if len(dong_clean) >= 2 and dong_clean in q:
                 score += 20
@@ -1576,7 +1580,6 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
-    # 화면에는 4개가 보이고, 로테이션은 top 8개를 순환
     alert_rows = top_df.head(8).copy()
     cards_html = ""
 
@@ -1921,9 +1924,7 @@ def render_chat_panel(
 ) -> None:
     items_html = ""
 
-    visible_messages = messages
-
-    for msg in visible_messages:
+    for msg in messages:
         role = msg.get("role", "assistant")
         content = escape_html(msg.get("content", ""))
         role_class = "user" if role == "user" else "assistant"
@@ -2047,17 +2048,9 @@ def render_chat_panel(
             animation: typingBounce 1.05s infinite ease-in-out;
         }}
 
-        .typing-dot.dot-1 {{
-            animation-delay: 0s;
-        }}
-
-        .typing-dot.dot-2 {{
-            animation-delay: 0.16s;
-        }}
-
-        .typing-dot.dot-3 {{
-            animation-delay: 0.32s;
-        }}
+        .typing-dot.dot-1 {{ animation-delay: 0s; }}
+        .typing-dot.dot-2 {{ animation-delay: 0.16s; }}
+        .typing-dot.dot-3 {{ animation-delay: 0.32s; }}
 
         @keyframes typingBounce {{
             0%, 80%, 100% {{
@@ -2429,6 +2422,111 @@ facts:
     )
 
 
+def build_answer_from_parsed_query(
+    clean_user_text: str,
+    parsed: Dict,
+    pred: pd.DataFrame,
+    area_info: pd.DataFrame,
+    messages: list[dict],
+) -> tuple[str, dict]:
+    next_date = parsed["date"]
+    next_time = parsed["time"]
+    next_zone_id = parsed["zone_id"]
+
+    next_pred_filtered = pred[
+        (pred["date_str"] == next_date)
+        & (pred["time_str"] == next_time)
+    ].copy()
+
+    if next_pred_filtered.empty:
+        return (
+            "선택한 날짜와 시간에 해당하는 예측 데이터가 없습니다.",
+            {"show_selected_detail": False},
+        )
+
+    next_zone_now = next_pred_filtered[
+        next_pred_filtered["생활권역ID"] == next_zone_id
+    ].copy()
+
+    if next_zone_now.empty:
+        return (
+            "입력한 위치에 해당하는 생활권 예측 데이터를 찾지 못했습니다.",
+            {"show_selected_detail": False},
+        )
+
+    next_zone_pred_kwh = float(next_zone_now["predicted_kwh"].iloc[0])
+
+    next_zone_rank = (
+        next_pred_filtered["predicted_kwh"]
+        .rank(method="min", ascending=False)
+        .loc[next_zone_now.index[0]]
+    )
+
+    next_selected_area = area_info[
+        area_info["생활권역ID"] == next_zone_id
+    ].copy()
+
+    if next_selected_area.empty:
+        next_selected_label = next_zone_id
+        next_selected_dongs = ""
+    else:
+        next_selected_label = next_selected_area["생활권역표시명"].iloc[0]
+        next_selected_dongs = (
+            next_selected_area["행정동명목록"].iloc[0]
+            if "행정동명목록" in next_selected_area.columns
+            else ""
+        )
+
+    next_day_zone = pred[
+        (pred["date_str"] == next_date)
+        & (pred["생활권역ID"] == next_zone_id)
+    ].copy()
+
+    if not next_day_zone.empty:
+        next_peak_row = next_day_zone.loc[
+            next_day_zone["predicted_kwh"].idxmax()
+        ]
+        next_total_day_kwh = float(next_day_zone["predicted_kwh"].sum())
+        next_peak_time = str(next_peak_row["time_str"])
+        next_peak_kwh = float(next_peak_row["predicted_kwh"])
+    else:
+        next_total_day_kwh = 0.0
+        next_peak_time = "-"
+        next_peak_kwh = 0.0
+
+    next_top10 = next_pred_filtered.sort_values(
+        "predicted_kwh",
+        ascending=False,
+    ).head(10)
+
+    next_top10 = next_top10.merge(
+        area_info[["생활권역ID", "생활권역라벨", "생활권역표시명"]],
+        on="생활권역ID",
+        how="left",
+    )
+
+    next_n_zones = pred["zone_idx"].nunique()
+
+    answer = build_llm_answer(
+        user_text=clean_user_text,
+        selected_date=next_date,
+        selected_time=next_time,
+        selected_label=next_selected_label,
+        selected_zone_id=next_zone_id,
+        selected_dongs=next_selected_dongs,
+        zone_pred_kwh=next_zone_pred_kwh,
+        zone_rank=int(next_zone_rank),
+        n_zones=next_n_zones,
+        peak_time=next_peak_time,
+        peak_kwh=next_peak_kwh,
+        total_day_kwh=next_total_day_kwh,
+        top10=next_top10,
+        messages=messages,
+    )
+
+    return answer, {"show_selected_detail": True}
+
+
 # =========================================================
 # 데이터 로딩
 # =========================================================
@@ -2593,45 +2691,6 @@ map_gdf = prepare_map_gdf(
 
 
 # =========================================================
-# LLM 답변 생성
-# =========================================================
-if st.session_state.pending_invalid_query:
-    pending = st.session_state.pending_invalid_query
-    answer = build_invalid_answer(
-        user_text=pending["user_text"],
-        reason_message=pending["reason_message"],
-        reason=pending.get("reason", "invalid"),
-        llm_extract=pending.get("llm_extract"),
-        messages=st.session_state.messages,
-        pred=pred,
-    )
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-    st.session_state.pending_invalid_query = None
-    st.session_state.show_selected_detail = False
-
-if st.session_state.pending_user_query:
-    answer = build_llm_answer(
-        user_text=st.session_state.pending_user_query,
-        selected_date=selected_date,
-        selected_time=selected_time,
-        selected_label=selected_label,
-        selected_zone_id=selected_zone_id,
-        selected_dongs=selected_dongs,
-        zone_pred_kwh=zone_pred_kwh,
-        zone_rank=int(zone_rank),
-        n_zones=n_zones,
-        peak_time=peak_time,
-        peak_kwh=peak_kwh,
-        total_day_kwh=total_day_kwh,
-        top10=top10,
-        messages=st.session_state.messages,
-    )
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-    st.session_state.pending_user_query = None
-    st.session_state.show_selected_detail = True
-
-
-# =========================================================
 # 채팅 패널에 표시할 선택 생활권 상세 HTML
 # =========================================================
 selected_detail_html = None
@@ -2759,7 +2818,6 @@ with chat_col:
         if submitted and user_text.strip():
             clean_user_text = user_text.strip()
 
-            # 1. 사용자 질문을 즉시 메시지에 추가
             st.session_state.messages.append(
                 {
                     "role": "user",
@@ -2767,7 +2825,6 @@ with chat_col:
                 }
             )
 
-            # 2. LLM 처리 전에 채팅창을 먼저 갱신해서 질문 + typing indicator 표시
             with chat_placeholder:
                 render_chat_panel(
                     messages=st.session_state.messages,
@@ -2775,7 +2832,6 @@ with chat_col:
                     is_typing=True,
                 )
 
-            # 3. 자연어 질의 파싱
             parsed = parse_user_query(
                 text=clean_user_text,
                 pred=pred,
@@ -2785,7 +2841,6 @@ with chat_col:
                 fallback_zone_id=st.session_state.selected_zone_id,
             )
 
-            # 4. 잘못된 질의일 경우에도 typing 상태 이후 답변 생성
             if not parsed["ok"]:
                 answer = build_invalid_answer(
                     user_text=clean_user_text,
@@ -2805,32 +2860,41 @@ with chat_col:
 
                 st.session_state.show_selected_detail = False
                 st.session_state.animate_zoom = False
+                st.session_state.pending_user_query = None
+                st.session_state.pending_invalid_query = None
 
-                with chat_placeholder:
-                    render_chat_panel(
-                        messages=st.session_state.messages,
-                        selected_detail_html=None,
-                        is_typing=False,
-                    )
+                st.rerun()
 
-                st.stop()
-
-            # 5. 정상 질의일 경우 선택 상태 먼저 갱신
             if st.session_state.has_query:
                 st.session_state.previous_focus_zone_id = st.session_state.selected_zone_id
             else:
                 st.session_state.previous_focus_zone_id = None
 
+            answer, answer_state = build_answer_from_parsed_query(
+                clean_user_text=clean_user_text,
+                parsed=parsed,
+                pred=pred,
+                area_info=area_info,
+                messages=st.session_state.messages,
+            )
+
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": answer,
+                }
+            )
+
             st.session_state.selected_date = parsed["date"]
             st.session_state.selected_time = parsed["time"]
             st.session_state.selected_zone_id = parsed["zone_id"]
             st.session_state.has_query = True
-            st.session_state.show_selected_detail = True
+            st.session_state.show_selected_detail = bool(
+                answer_state.get("show_selected_detail", True)
+            )
             st.session_state.animate_zoom = True
-
-            # 6. 화면 전체가 바로 끊기지 않도록 pending_user_query만 저장하고,
-            #    현재 화면에서는 typing indicator를 보여준 뒤 다음 rerun에서 지도와 답변을 갱신
-            st.session_state.pending_user_query = clean_user_text
+            st.session_state.pending_user_query = None
+            st.session_state.pending_invalid_query = None
 
             st.rerun()
 
