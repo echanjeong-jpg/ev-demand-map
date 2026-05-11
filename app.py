@@ -46,6 +46,8 @@ OVERVIEW_LATITUDE = 37.5555
 OVERVIEW_LONGITUDE = 126.9860
 OVERVIEW_ZOOM = 9.45
 
+MAX_CHAT_HISTORY_FOR_LLM = 8
+
 
 # =========================================================
 # Streamlit 설정
@@ -369,6 +371,27 @@ def safe_json_loads(text: str) -> dict:
     return {}
 
 
+def get_recent_chat_context(messages: list[dict], limit: int = MAX_CHAT_HISTORY_FOR_LLM) -> list[dict]:
+    recent = messages[-limit:] if messages else []
+    cleaned = []
+
+    for msg in recent:
+        role = msg.get("role", "assistant")
+        content = str(msg.get("content", "")).strip()
+
+        if not content:
+            continue
+
+        cleaned.append(
+            {
+                "role": role,
+                "content": content[:900],
+            }
+        )
+
+    return cleaned
+
+
 # =========================================================
 # Gemini API 함수
 # =========================================================
@@ -406,7 +429,7 @@ def get_gemini_model() -> str:
 def call_gemini_text(
     system_prompt: str,
     user_prompt: str,
-    temperature: float = 0.2,
+    temperature: float = 0.25,
 ) -> Optional[str]:
     client = get_gemini_client()
     if client is None:
@@ -605,6 +628,9 @@ def load_living_area_gdf(shp_path: Path, meta_zone_ids: list[str]) -> gpd.GeoDat
 # 자연어 질의 처리
 # =========================================================
 def extract_any_date_candidate(text: str) -> Optional[str]:
+    if not text:
+        return None
+
     m = re.search(r"(20\d{2})[-년./\s]*(\d{1,2})[-월./\s]*(\d{1,2})", text)
     if m:
         y, mo, d = map(int, m.groups())
@@ -631,6 +657,9 @@ def parse_date_from_text(text: str, available_dates: list[str]) -> Optional[str]
 
 
 def extract_any_time_candidate(text: str) -> Optional[str]:
+    if not text:
+        return None
+
     m = re.search(r"(\d{1,2})\s*:\s*(\d{1,2})", text)
     if m:
         h, mi = map(int, m.groups())
@@ -682,79 +711,11 @@ def parse_time_from_text(text: str, available_times: list[str]) -> Optional[str]
     return None
 
 
-def llm_extract_query(
-    text: str,
-    pred: pd.DataFrame,
-    area_info: pd.DataFrame,
-) -> dict:
-    available_dates = sorted(pred["date_str"].unique())
-    min_date = available_dates[0]
-    max_date = available_dates[-1]
-
-    sample_zones = area_info[
-        ["생활권역ID", "생활권역표시명", "행정동명목록"]
-    ].head(50).to_dict(orient="records")
-
-    system_prompt = """
-너는 전기차 충전수요 지도 서비스의 자연어 질의 해석기다.
-사용자의 한국어 질의에서 날짜, 시간, 위치 표현을 추출한다.
-
-반드시 JSON만 출력한다.
-설명 문장은 출력하지 않는다.
-
-출력 형식:
-{
-  "date_text": "사용자가 말한 날짜 표현 또는 null",
-  "time_text": "사용자가 말한 시간 표현 또는 null",
-  "location_text": "사용자가 말한 위치/동/구/생활권 표현 또는 null",
-  "intent": "demand_lookup | other"
-}
-
-규칙:
-- 날짜가 없으면 null.
-- 시간이 없으면 null.
-- 위치가 없으면 null.
-- 사용자가 충전수요, 예측, 지도, 생활권, 알려줘, 보여줘 등을 말하면 demand_lookup.
-- 인사, 잡담, 관계없는 질문은 other.
-- 임의로 예측값을 만들지 마라.
-"""
-
-    user_prompt = f"""
-사용자 질의:
-{text}
-
-예측 데이터 날짜 범위:
-{min_date} ~ {max_date}
-
-생활권 예시:
-{json.dumps(sample_zones, ensure_ascii=False)}
-
-JSON만 출력하라.
-"""
-
-    llm_text = call_gemini_text(system_prompt, user_prompt, temperature=0.0)
-    parsed = safe_json_loads(llm_text or "")
-
-    if not parsed:
-        return {
-            "date_text": None,
-            "time_text": None,
-            "location_text": None,
-            "intent": "other",
-            "raw": llm_text,
-        }
-
-    return {
-        "date_text": parsed.get("date_text"),
-        "time_text": parsed.get("time_text"),
-        "location_text": parsed.get("location_text"),
-        "intent": parsed.get("intent", "other"),
-        "raw": llm_text,
-    }
-
-
 def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
     q = clean_text(text)
+
+    if not q:
+        return None
 
     id_candidates = re.findall(r"생활권경계[_\s-]*\d{1,3}", text)
     for cand in id_candidates:
@@ -817,6 +778,104 @@ def find_zone_by_location(text: str, area_info: pd.DataFrame) -> Optional[str]:
     return None
 
 
+def llm_understand_user_query(
+    text: str,
+    pred: pd.DataFrame,
+    area_info: pd.DataFrame,
+    messages: list[dict],
+) -> dict:
+    """
+    LLM을 단순 추출기가 아니라 대화형 의도 해석기로 사용한다.
+    다만 실제 데이터 조회 전 단계이므로 예측값은 만들지 못하게 제한한다.
+    """
+    available_dates = sorted(pred["date_str"].unique())
+    min_date = available_dates[0]
+    max_date = available_dates[-1]
+
+    sample_zones = area_info[
+        ["생활권역ID", "생활권역표시명", "행정동명목록"]
+    ].head(80).to_dict(orient="records")
+
+    chat_context = get_recent_chat_context(messages)
+
+    system_prompt = """
+너는 서울시 생활권별 전기차 충전수요 예측 서비스 'E-Vlog'의 대화형 LLM 모도리다.
+너의 역할은 사용자의 자연어 발화를 이해하고, 예측 데이터 조회에 필요한 정보를 구조화하는 것이다.
+
+반드시 JSON만 출력한다. 설명 문장은 출력하지 않는다.
+
+출력 형식:
+{
+  "intent": "demand_lookup | compare | rank | peak | service_question | casual | other",
+  "date_text": "사용자가 말한 날짜 표현 또는 null",
+  "time_text": "사용자가 말한 시간 표현 또는 null",
+  "location_text": "사용자가 말한 위치/동/구/생활권 표현 또는 null",
+  "needs_data_lookup": true 또는 false,
+  "missing_fields": ["date", "time", "location"] 중 부족한 항목,
+  "user_goal": "사용자가 알고 싶어 하는 내용을 한국어 한 문장으로 요약",
+  "assistant_hint": "사용자에게 다음에 어떻게 응답하면 좋은지 짧은 한국어 지침"
+}
+
+판단 규칙:
+- 충전수요, 전기차, 예측, 지도, 수요, 피크, 순위, 생활권, 특정 위치 조회는 needs_data_lookup=true.
+- 인사나 잡담은 casual.
+- 서비스 사용법 질문은 service_question.
+- 사용자가 날짜/시간/위치를 일부 생략했더라도, 이전 대화 맥락에 있다면 그 맥락을 활용해도 된다.
+- 단, 예측값이나 순위는 절대 만들지 않는다.
+- 날짜, 시간, 위치가 필요한 조회인데 부족하면 missing_fields에 넣는다.
+- JSON 이외의 텍스트는 출력하지 않는다.
+"""
+
+    user_prompt = f"""
+사용자 현재 입력:
+{text}
+
+최근 대화:
+{json.dumps(chat_context, ensure_ascii=False, indent=2)}
+
+예측 데이터 날짜 범위:
+{min_date} ~ {max_date}
+
+서비스 데이터 범위:
+- 서울시 생활권 경계
+- 예측 CSV에 포함된 날짜와 30분 단위 시간
+- 생활권별 predicted_kwh
+
+생활권 예시:
+{json.dumps(sample_zones, ensure_ascii=False, indent=2)}
+
+JSON만 출력하라.
+"""
+
+    llm_text = call_gemini_text(system_prompt, user_prompt, temperature=0.05)
+    parsed = safe_json_loads(llm_text or "")
+
+    if not parsed:
+        return {
+            "intent": "other",
+            "date_text": None,
+            "time_text": None,
+            "location_text": None,
+            "needs_data_lookup": False,
+            "missing_fields": [],
+            "user_goal": text,
+            "assistant_hint": "사용자의 발화를 이해하지 못했으므로 자연스럽게 다시 질문하도록 안내한다.",
+            "raw": llm_text,
+        }
+
+    return {
+        "intent": parsed.get("intent", "other"),
+        "date_text": parsed.get("date_text"),
+        "time_text": parsed.get("time_text"),
+        "location_text": parsed.get("location_text"),
+        "needs_data_lookup": bool(parsed.get("needs_data_lookup", False)),
+        "missing_fields": parsed.get("missing_fields", []),
+        "user_goal": parsed.get("user_goal", text),
+        "assistant_hint": parsed.get("assistant_hint", ""),
+        "raw": llm_text,
+    }
+
+
 def parse_user_query(
     text: str,
     pred: pd.DataFrame,
@@ -824,38 +883,39 @@ def parse_user_query(
     fallback_date: str,
     fallback_time: str,
     fallback_zone_id: str,
+    messages: list[dict],
 ) -> Dict:
     available_dates = sorted(pred["date_str"].unique())
-    llm_result = llm_extract_query(text, pred, area_info)
+    llm_result = llm_understand_user_query(text, pred, area_info, messages)
 
     date_text = str(llm_result.get("date_text") or "").strip()
     time_text = str(llm_result.get("time_text") or "").strip()
     location_text = str(llm_result.get("location_text") or "").strip()
     intent = str(llm_result.get("intent") or "other").strip()
+    needs_data_lookup = bool(llm_result.get("needs_data_lookup", False))
 
     has_demand_keyword = bool(
         re.search(
-            r"수요|충전|예측|전기차|생활권|지도|보여|알려|조회|분석|혼잡|급증|피크|kwh|kw",
+            r"수요|충전|예측|전기차|생활권|지도|보여|알려|조회|분석|혼잡|급증|피크|kwh|kw|순위",
             text,
             re.IGNORECASE,
         )
     )
 
+    guessed_zone = find_zone_by_location(" ".join([location_text, text]), area_info)
+
     has_any_condition = bool(
         extract_any_date_candidate(text)
         or extract_any_time_candidate(text)
-        or find_zone_by_location(text, area_info)
+        or guessed_zone
         or location_text
     )
 
-    if intent != "demand_lookup" and not has_demand_keyword and not has_any_condition:
+    if not needs_data_lookup and not has_demand_keyword and not has_any_condition:
         return {
             "ok": False,
-            "reason": "needs_ev_query",
-            "message": (
-                "충전수요 예측을 조회하려면 날짜, 시간, 위치를 함께 입력해 주세요. "
-                "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
-            ),
+            "reason": "conversational",
+            "message": "충전수요 조회가 아닌 일반 대화입니다.",
             "date": fallback_date,
             "time": fallback_time,
             "zone_id": fallback_zone_id,
@@ -884,7 +944,18 @@ def parse_user_query(
         parsed_date = parse_date_from_text(text, available_dates)
 
     if parsed_date is None:
-        parsed_date = fallback_date
+        return {
+            "ok": False,
+            "reason": "missing_date",
+            "message": (
+                "충전수요를 조회하려면 날짜가 필요합니다. "
+                f"현재 조회 가능한 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지입니다."
+            ),
+            "date": fallback_date,
+            "time": fallback_time,
+            "zone_id": fallback_zone_id,
+            "llm_extract": llm_result,
+        }
 
     available_times = sorted(pred[pred["date_str"] == parsed_date]["time_str"].unique())
 
@@ -910,7 +981,18 @@ def parse_user_query(
         parsed_time = parse_time_from_text(text, available_times)
 
     if parsed_time is None:
-        parsed_time = fallback_time
+        return {
+            "ok": False,
+            "reason": "missing_time",
+            "message": (
+                "충전수요를 조회하려면 시간이 필요합니다. "
+                "예: 오후 6시, 18:00, 18시 30분처럼 입력해 주세요."
+            ),
+            "date": fallback_date,
+            "time": fallback_time,
+            "zone_id": fallback_zone_id,
+            "llm_extract": llm_result,
+        }
 
     location_source = " ".join([location_text, text]).strip()
     parsed_zone_id = find_zone_by_location(location_source, area_info)
@@ -1340,11 +1422,6 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 # 표시 함수
 # =========================================================
 def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
-    """
-    화성특례시 교통정보센터의 지체/정체 구간 정보처럼
-    카드가 한 칸씩 위로 올라오고 잠시 멈추는 자동 롤링형 수요 급증 알림.
-    텍스트 잘림을 줄이고, 제목 중심으로만 볼드 처리한 가독성 개선 버전.
-    """
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
         return
@@ -1384,9 +1461,9 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             </div>
 
             <div class="alert-content">
-                <div class="zone-title">{label}</div>
-                <div class="zone-sub">{title}</div>
-                <div class="zone-desc">{sub}</div>
+                <div class="zone-title">{escape_html(label)}</div>
+                <div class="zone-sub">{escape_html(title)}</div>
+                <div class="zone-desc">{escape_html(sub)}</div>
             </div>
 
             <div class="alert-side">
@@ -1514,7 +1591,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             margin-top: 6px;
             color: #2F3A4C;
             font-size: 12.5px;
-            font-weight: 700;
+            font-weight: 600;
             line-height: 1.32;
             word-break: keep-all;
             overflow-wrap: anywhere;
@@ -1561,7 +1638,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         .chip-value {{
             color: #172033;
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 650;
             line-height: 1.15;
             margin-top: 4px;
             white-space: nowrap;
@@ -1780,7 +1857,7 @@ def render_chat_panel(
             border-radius: 15px;
             padding: 10px 12px;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 650;
             line-height: 1.52;
             word-break: keep-all;
             box-sizing: border-box;
@@ -1790,6 +1867,7 @@ def render_chat_panel(
             background: #2E6BEA;
             color: #FFFFFF;
             border-bottom-right-radius: 5px;
+            font-weight: 700;
         }}
 
         .chat-bubble.assistant {{
@@ -1813,14 +1891,14 @@ def render_chat_panel(
         .detail-card-kicker {{
             color: #6F7C8D;
             font-size: 11px;
-            font-weight: 900;
+            font-weight: 800;
             margin-bottom: 3px;
         }}
 
         .detail-card-title {{
             color: #172033;
             font-size: 18px;
-            font-weight: 900;
+            font-weight: 850;
             letter-spacing: -0.045em;
             line-height: 1.25;
         }}
@@ -1828,7 +1906,7 @@ def render_chat_panel(
         .detail-card-id {{
             color: #178554;
             font-size: 11.5px;
-            font-weight: 900;
+            font-weight: 800;
             margin-top: 4px;
         }}
 
@@ -1842,14 +1920,14 @@ def render_chat_panel(
         .meta-label {{
             color: #7A8797;
             font-size: 10.5px;
-            font-weight: 900;
+            font-weight: 800;
             margin-bottom: 2px;
         }}
 
         .meta-text {{
             color: #4D5A6B;
             font-size: 11.5px;
-            font-weight: 750;
+            font-weight: 600;
             line-height: 1.38;
             word-break: keep-all;
         }}
@@ -1873,14 +1951,14 @@ def render_chat_panel(
         .metric-label {{
             color: #7A8797;
             font-size: 10.5px;
-            font-weight: 850;
+            font-weight: 700;
             margin-bottom: 4px;
         }}
 
         .metric-value {{
             color: #172033;
             font-size: 17px;
-            font-weight: 900;
+            font-weight: 850;
             letter-spacing: -0.04em;
         }}
 
@@ -1892,7 +1970,7 @@ def render_chat_panel(
             background: #EAF8EF;
             color: #178554;
             font-size: 10.5px;
-            font-weight: 900;
+            font-weight: 800;
         }}
     </style>
     </head>
@@ -1911,6 +1989,9 @@ def render_chat_panel(
     components.html(html, height=CHAT_SCROLL_HEIGHT + 8, scrolling=False)
 
 
+# =========================================================
+# LLM 답변 생성
+# =========================================================
 def build_fallback_answer(
     selected_date: str,
     selected_time: str,
@@ -1924,78 +2005,84 @@ def build_fallback_answer(
     total_day_kwh: float,
 ) -> str:
     return (
-        f"{selected_date} {selected_time} 기준으로 요청하신 위치는 "
-        f"{selected_label} 생활권에 포함됩니다.\n\n"
-        f"선택 시각 예측 충전 수요는 {zone_pred_kwh:.1f} kWh이며, "
-        f"전체 {n_zones}개 생활권 중 {int(zone_rank)}위입니다.\n"
-        f"해당 날짜의 총 예측 충전량은 {total_day_kwh:.0f} kWh이고, "
-        f"피크 시간은 {peak_time}로 예상됩니다.\n\n"
-        f"지도에서는 해당 생활권을 강조하고, 상세 정보는 이 채팅 패널에 표시했습니다."
+        f"{selected_date} {selected_time} 기준으로 {selected_label} 생활권을 조회했습니다.\n\n"
+        f"예측 충전수요는 {zone_pred_kwh:.1f} kWh이고, "
+        f"전체 {n_zones}개 생활권 중 {int(zone_rank)}위입니다. "
+        f"해당 날짜의 일일 총 예측수요는 {total_day_kwh:.0f} kWh이며, "
+        f"피크 시간은 {peak_time}, 피크 예측값은 {peak_kwh:.1f} kWh입니다.\n\n"
+        f"지도에서는 해당 생활권을 강조해 표시했습니다."
     )
 
 
-def build_invalid_answer(user_text: str, reason_message: str, reason: str = "invalid") -> str:
-    if reason == "needs_ev_query":
-        system_prompt = """
-너는 E-Vlog 서비스의 전기차 충전수요 분석 챗봇 '모도리'다.
-사용자의 말이 인사, 잡담, 또는 충전수요 예측과 직접 관련 없는 내용일 때,
-친절하게 반응하되 자연스럽게 충전수요 예측 질문으로 유도한다.
-
-절대 예측값을 만들지 않는다.
-한국어로 답변한다.
-답변은 3~5문장으로 짧게 한다.
-"""
-
-        user_prompt = f"""
-사용자 입력:
-{user_text}
-
-서비스 안내:
-이 서비스는 서울시 생활권별 전기차 충전수요를 날짜, 시간, 위치 기준으로 조회한다.
-사용자는 예를 들어 "2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"처럼 질문할 수 있다.
-
-위 내용을 바탕으로 자연스럽게 답변하라.
-"""
-
-        llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.35)
-
-        if llm_answer:
-            return llm_answer.strip()
-
-        return (
-            "안녕하세요. 저는 모도리입니다.\n\n"
-            "전기차 충전수요를 확인하려면 보고 싶은 날짜, 시간, 위치를 함께 입력해 주세요.\n"
-            "예를 들어, `2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘`처럼 물어볼 수 있습니다."
-        )
+def build_conversational_answer(
+    user_text: str,
+    reason_message: str,
+    reason: str,
+    llm_extract: dict | None,
+    messages: list[dict],
+    pred: pd.DataFrame,
+) -> str:
+    available_dates = sorted(pred["date_str"].unique())
+    chat_context = get_recent_chat_context(messages)
 
     system_prompt = """
-너는 E-Vlog 서비스의 전기차 충전수요 분석 챗봇 '모도리'다.
-사용자가 요청한 조건이 현재 데이터셋에 없다는 사실을 친절하고 명확하게 설명한다.
-절대로 없는 예측값을 만들지 않는다.
-가능하면 사용자가 다시 질문할 수 있는 예시를 제시한다.
-한국어로 답변한다.
-답변은 4~6문장으로 작성한다.
+너는 서울시 생활권별 전기차 충전수요 예측 서비스 E-Vlog의 대화형 LLM '모도리'다.
+사용자와 자연스럽게 대화하되, 서비스의 핵심 기능인 충전수요 예측 조회로 부드럽게 연결한다.
+
+중요 규칙:
+- 예측값, 순위, 피크시간 등 데이터 수치는 절대 임의로 만들지 않는다.
+- 데이터 조회가 실패한 경우에는 실패 이유를 자연스럽게 설명한다.
+- 사용자가 인사나 잡담을 하면 짧게 받아주고, 날짜·시간·위치를 입력하면 예측을 볼 수 있다고 안내한다.
+- 사용자가 날짜/시간/위치 중 일부를 빼먹으면, 부족한 항목만 자연스럽게 되묻는다.
+- 한국어로 답변한다.
+- 너무 기계적인 오류 문구처럼 쓰지 말고, 실제 챗봇처럼 3~6문장으로 답변한다.
 """
 
     user_prompt = f"""
-사용자 질문:
+사용자 입력:
 {user_text}
 
-데이터 검증 결과:
-{reason_message}
+최근 대화:
+{json.dumps(chat_context, ensure_ascii=False, indent=2)}
 
-위 사실만 바탕으로 답변하라.
+LLM 해석 결과:
+{json.dumps(llm_extract or {}, ensure_ascii=False, indent=2)}
+
+데이터 검증 결과:
+- reason: {reason}
+- message: {reason_message}
+
+현재 예측 데이터 날짜 범위:
+{available_dates[0]} ~ {available_dates[-1]}
+
+서비스 예시 질문:
+2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘
+
+위 정보만 바탕으로 자연스럽게 답변하라.
 """
 
-    llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.2)
+    llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.45)
 
     if llm_answer:
         return llm_answer.strip()
 
+    if reason in {"missing_date", "missing_time", "location_unavailable"}:
+        return (
+            f"좋아요. 다만 예측 결과를 정확히 조회하려면 날짜, 시간, 위치가 필요합니다.\n\n"
+            f"{reason_message}\n\n"
+            f"예를 들어 `2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘`처럼 입력해 주세요."
+        )
+
+    if reason == "conversational":
+        return (
+            "안녕하세요. 저는 모도리입니다.\n\n"
+            "서울시 생활권별 전기차 충전수요를 예측 데이터에서 찾아 자연어로 설명해 드릴 수 있습니다. "
+            "보고 싶은 날짜, 시간, 위치를 함께 입력해 주세요."
+        )
+
     return (
-        "요청하신 조건은 현재 데이터셋에서 조회할 수 없습니다.\n\n"
-        f"{reason_message}\n\n"
-        "현재 서비스는 보유한 예측 CSV와 서울시 생활권 경계 데이터에 포함된 날짜, 시간, 위치에 대해서만 답변할 수 있습니다."
+        f"요청하신 조건은 현재 데이터셋에서 조회할 수 없습니다.\n\n"
+        f"{reason_message}"
     )
 
 
@@ -2013,6 +2100,8 @@ def build_llm_answer(
     peak_kwh: float,
     total_day_kwh: float,
     top10: pd.DataFrame,
+    messages: list[dict],
+    llm_extract: dict | None = None,
 ) -> str:
     top_items = []
     for i, row in enumerate(top10.head(5).itertuples(), start=1):
@@ -2025,7 +2114,9 @@ def build_llm_answer(
         )
 
     facts = {
+        "source": "gru_test_predictions_simple.csv, meta.json, area_info.xlsx, UPIS_SHP_ZON100.shp",
         "user_query": user_text,
+        "llm_interpretation": llm_extract or {},
         "date": selected_date,
         "time": selected_time,
         "zone_label": selected_label,
@@ -2040,31 +2131,37 @@ def build_llm_answer(
         "top5_at_selected_time": top_items,
     }
 
-    system_prompt = """
-너는 E-Vlog 서비스의 전기차 충전수요 분석 챗봇 '모도리'다.
-반드시 제공된 facts 데이터만 근거로 답변한다.
-없는 정보는 추측하지 않는다.
+    chat_context = get_recent_chat_context(messages)
 
-답변 스타일:
-- 한국어
-- 사용자가 물어본 날짜, 시간, 위치를 먼저 확인
-- 예측 충전수요, 순위, 일일 총량, 피크시간을 자연스럽게 설명
-- 운영 관점에서 한 문장 조언 포함
-- 너무 길지 않게 5~8문장 정도
-- 수치는 facts에 있는 값 그대로 사용
+    system_prompt = """
+너는 서울시 생활권별 전기차 충전수요 예측 서비스 E-Vlog의 대화형 LLM '모도리'다.
+사용자는 너와 일반 챗봇처럼 대화하지만, 답변의 수치와 사실은 반드시 제공된 facts 데이터에 근거해야 한다.
+
+중요 규칙:
+- facts에 없는 예측값, 순위, 피크시간, 생활권 정보는 절대 만들지 않는다.
+- 수치는 facts에 있는 값을 그대로 사용한다.
+- 사용자가 물어본 표현을 이해한 뒤, 실제 데이터에서 조회한 결과처럼 자연스럽게 답변한다.
+- 너무 표처럼 나열하지 말고, 자연어 중심으로 답변한다.
+- 단, 핵심 수치인 예측수요, 순위, 피크시간은 반드시 포함한다.
+- 운영 관점의 짧은 조언을 마지막에 붙인다.
+- 한국어로 답변한다.
+- 5~8문장 정도로 답변한다.
 """
 
     user_prompt = f"""
+최근 대화:
+{json.dumps(chat_context, ensure_ascii=False, indent=2)}
+
 사용자 질문:
 {user_text}
 
 facts:
 {json.dumps(facts, ensure_ascii=False, indent=2)}
 
-위 facts만 사용해서 자연어로 답변하라.
+위 facts만 근거로, 실제 LLM 챗봇처럼 자연스럽게 답변하라.
 """
 
-    llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.25)
+    llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.38)
 
     if llm_answer:
         return llm_answer.strip()
@@ -2147,15 +2244,18 @@ if "pending_invalid_query" not in st.session_state:
 if "last_llm_error" not in st.session_state:
     st.session_state.last_llm_error = None
 
+if "last_successful_query_id" not in st.session_state:
+    st.session_state.last_successful_query_id = None
+
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant",
             "content": (
                 "안녕하세요. 저는 모도리입니다.\n\n"
-                "보고 싶은 날짜, 시간, 위치를 자연어로 입력하면 "
-                "예측 결과 파일을 조회해 해당 생활권의 충전수요를 알려드립니다.\n\n"
-                "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
+                "저는 GitHub에 함께 배포된 예측 결과 파일을 조회해서 "
+                "서울시 생활권별 전기차 충전수요를 자연어로 설명해 드립니다.\n\n"
+                "예를 들어 `2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘`처럼 물어보시면 됩니다."
             ),
         }
     ]
@@ -2247,18 +2347,32 @@ map_gdf = prepare_map_gdf(
 # =========================================================
 if st.session_state.pending_invalid_query:
     pending = st.session_state.pending_invalid_query
-    answer = build_invalid_answer(
+
+    answer = build_conversational_answer(
         user_text=pending["user_text"],
         reason_message=pending["reason_message"],
         reason=pending.get("reason", "invalid"),
+        llm_extract=pending.get("llm_extract"),
+        messages=st.session_state.messages,
+        pred=pred,
     )
+
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.session_state.pending_invalid_query = None
     st.session_state.show_selected_detail = False
 
 if st.session_state.pending_user_query:
+    pending = st.session_state.pending_user_query
+
+    if isinstance(pending, dict):
+        pending_text = pending.get("user_text", "")
+        pending_extract = pending.get("llm_extract", {})
+    else:
+        pending_text = str(pending)
+        pending_extract = {}
+
     answer = build_llm_answer(
-        user_text=st.session_state.pending_user_query,
+        user_text=pending_text,
         selected_date=selected_date,
         selected_time=selected_time,
         selected_label=selected_label,
@@ -2271,7 +2385,10 @@ if st.session_state.pending_user_query:
         peak_kwh=peak_kwh,
         total_day_kwh=total_day_kwh,
         top10=top10,
+        messages=st.session_state.messages,
+        llm_extract=pending_extract,
     )
+
     st.session_state.messages.append({"role": "assistant", "content": answer})
     st.session_state.pending_user_query = None
     st.session_state.show_selected_detail = True
@@ -2402,6 +2519,7 @@ with chat_col:
                 fallback_date=st.session_state.selected_date,
                 fallback_time=st.session_state.selected_time,
                 fallback_zone_id=st.session_state.selected_zone_id,
+                messages=st.session_state.messages,
             )
 
             if not parsed["ok"]:
@@ -2409,11 +2527,11 @@ with chat_col:
                     "user_text": clean_user_text,
                     "reason_message": parsed["message"],
                     "reason": parsed["reason"],
+                    "llm_extract": parsed.get("llm_extract", {}),
                 }
 
                 st.session_state.show_selected_detail = False
                 st.session_state.animate_zoom = False
-
                 st.rerun()
 
             if st.session_state.has_query:
@@ -2427,6 +2545,9 @@ with chat_col:
             st.session_state.has_query = True
             st.session_state.show_selected_detail = True
             st.session_state.animate_zoom = True
-            st.session_state.pending_user_query = clean_user_text
+            st.session_state.pending_user_query = {
+                "user_text": clean_user_text,
+                "llm_extract": parsed.get("llm_extract", {}),
+            }
 
             st.rerun()
