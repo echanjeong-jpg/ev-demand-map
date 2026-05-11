@@ -66,23 +66,19 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Holtwood+One+SC&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     }
 
     .stApp {
-        background:
-            linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 48%, #F7F9FC 100%) !important;
-        box-shadow:
-            inset 0 10px 24px rgba(20, 40, 70, 0.035),
-            inset 0 -10px 24px rgba(20, 40, 70, 0.025);
+        background: #FFFFFF !important;
     }
 
     .block-container {
-        padding-top: 0.35rem;
-        padding-bottom: 0.35rem;
+        padding-top: 1.05rem;
+        padding-bottom: 0.6rem;
         max-width: 1440px;
     }
 
@@ -106,74 +102,93 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlock"] {
-        gap: 0.42rem;
+        gap: 0.55rem;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF;
-        border-radius: 22px;
-        border: 1px solid rgba(218, 226, 236, 0.95);
+        border-radius: 20px;
+        border: 1.15px solid rgba(25, 25, 25, 0.42);
         box-shadow:
-            0 10px 26px rgba(25, 45, 70, 0.075),
-            0 1px 0 rgba(255, 255, 255, 1) inset;
-        backdrop-filter: blur(6px);
+            0 18px 30px rgba(0, 0, 0, 0.16),
+            0 2px 0 rgba(255, 255, 255, 0.95) inset;
+        backdrop-filter: none;
     }
 
     .panel-title {
-        color: #172033;
-        font-size: 21px;
+        color: #111111;
+        font-size: 24px;
         font-weight: 900;
-        letter-spacing: -0.045em;
-        margin-bottom: 2px;
-        line-height: 1.18;
+        letter-spacing: -0.055em;
+        margin-bottom: 3px;
+        line-height: 1.08;
+    }
+
+    .panel-title.brand-blue {
+        color: #1F78B4;
+        font-family: 'Holtwood One SC', Georgia, serif;
+        font-size: 27px;
+        font-weight: 400;
+        letter-spacing: -0.035em;
     }
 
     .panel-subtitle {
-        color: #6E7B8D;
-        font-size: 12px;
-        font-weight: 700;
-        margin-bottom: 8px;
-        line-height: 1.34;
+        color: #555C66;
+        font-size: 12.2px;
+        font-weight: 600;
+        margin-bottom: 11px;
+        line-height: 1.42;
+        word-break: keep-all;
+    }
+
+    .section-kicker {
+        color: #1F78B4;
+        font-family: 'Holtwood One SC', Georgia, serif;
+        font-size: 13px;
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        margin-bottom: 6px;
     }
 
     .legend-wrap {
         display: flex;
         align-items: center;
         gap: 9px;
-        margin-top: 8px;
-        color: #677589;
-        font-weight: 850;
-        font-size: 12px;
+        margin-top: 9px;
+        color: #363C45;
+        font-weight: 650;
+        font-size: 11.5px;
     }
 
     .legend-bar {
-        height: 9px;
+        height: 8px;
         flex: 1;
         border-radius: 999px;
-        background: linear-gradient(90deg, #DDEBFA, #76A8FF, #2E6BEA, #132D6B);
-        box-shadow: 0 4px 12px rgba(34, 93, 180, 0.18);
+        background: linear-gradient(90deg, #E5EFFB, #8BB8F0, #1F78B4, #0B3152);
+        border: 1px solid rgba(20, 30, 45, 0.14);
+        box-shadow: 0 5px 12px rgba(31, 120, 180, 0.16);
     }
 
     div[data-testid="stMetric"] {
-        background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
-        border: 1px solid #DDE7F2;
-        border-radius: 16px;
+        background: #FFFFFF;
+        border: 1px solid rgba(30, 30, 30, 0.22);
+        border-radius: 15px;
         padding: 10px 12px;
         min-height: 82px;
-        box-shadow: 0 8px 18px rgba(24, 55, 90, 0.055);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.10);
     }
 
     div[data-testid="stMetricLabel"] {
-        color: #7A8797;
+        color: #6E747D;
         font-size: 11px;
-        font-weight: 850;
+        font-weight: 600;
     }
 
     div[data-testid="stMetricValue"] {
-        color: #172033;
+        color: #111111;
         font-size: 20px;
-        font-weight: 900;
-        letter-spacing: -0.04em;
+        font-weight: 850;
+        letter-spacing: -0.045em;
     }
 
     div[data-testid="stMetricDelta"] {
@@ -182,7 +197,8 @@ st.markdown(
 
     iframe {
         border-radius: 16px;
-        box-shadow: 0 10px 26px rgba(22, 50, 82, 0.08);
+        box-shadow: 0 14px 24px rgba(0, 0, 0, 0.12);
+        border: 1px solid rgba(30, 30, 30, 0.18);
     }
 
     div[data-testid="stTextInput"] {
@@ -192,24 +208,24 @@ st.markdown(
     div[data-testid="stTextInput"] > div {
         background: #FFFFFF !important;
         border-radius: 14px !important;
-        border: 1px solid #D4E0ED !important;
-        box-shadow: 0 8px 20px rgba(24, 55, 90, 0.09) !important;
+        border: 1px solid rgba(20, 20, 20, 0.25) !important;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.09) !important;
     }
 
     div[data-testid="stTextInput"] input {
         background: #FFFFFF !important;
-        color: #172033 !important;
+        color: #111111 !important;
         border-radius: 14px !important;
         min-height: 40px;
         font-size: 12px;
-        font-weight: 750;
+        font-weight: 600;
         border: none !important;
     }
 
     div[data-testid="stTextInput"] input::placeholder {
-        color: #8A96A7 !important;
+        color: #9AA0A8 !important;
         opacity: 1 !important;
-        font-weight: 650;
+        font-weight: 500;
     }
 
     div[data-testid="stForm"] {
@@ -219,25 +235,25 @@ st.markdown(
     }
 
     div[data-testid="stFormSubmitButton"] button {
-        border-radius: 13px;
-        min-height: 40px;
-        font-weight: 900;
-        background: linear-gradient(135deg, #1E63D6 0%, #2E7CF6 100%);
+        border-radius: 14px;
+        min-height: 42px;
+        font-weight: 850;
+        background: #1F78B4;
         color: white;
         border: 0;
         margin-top: -0.15rem;
-        box-shadow: 0 8px 18px rgba(31, 111, 229, 0.26);
+        box-shadow: 0 10px 18px rgba(31, 120, 180, 0.28);
     }
 
     div[data-testid="stFormSubmitButton"] button:hover {
-        background: linear-gradient(135deg, #184FAE 0%, #256CE6 100%);
+        background: #17679D;
         color: white;
         border: 0;
     }
 
     div[data-testid="stToggle"] label {
-        color: #263246 !important;
-        font-weight: 800 !important;
+        color: #111111 !important;
+        font-weight: 700 !important;
     }
 
     .llm-error-caption {
@@ -256,11 +272,20 @@ st.markdown(
 # =========================================================
 # 화면 보조 함수
 # =========================================================
-def panel_title(title: str, subtitle: str | None = None) -> None:
+def panel_title(
+    title: str,
+    subtitle: str | None = None,
+    kicker: str | None = None,
+    brand: bool = False,
+) -> None:
+    title_class = "panel-title brand-blue" if brand else "panel-title"
+    kicker_html = f'<div class="section-kicker">{kicker}</div>' if kicker else ""
+
     if subtitle:
         st.markdown(
             f"""
-            <div class="panel-title">{title}</div>
+            {kicker_html}
+            <div class="{title_class}">{title}</div>
             <div class="panel-subtitle">{subtitle}</div>
             """,
             unsafe_allow_html=True,
@@ -268,7 +293,8 @@ def panel_title(title: str, subtitle: str | None = None) -> None:
     else:
         st.markdown(
             f"""
-            <div class="panel-title">{title}</div>
+            {kicker_html}
+            <div class="{title_class}">{title}</div>
             """,
             unsafe_allow_html=True,
         )
@@ -1251,14 +1277,17 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 border-radius: 16px;
                 overflow: hidden;
                 background: #FFFFFF;
+                border: 1px solid rgba(20, 20, 20, 0.18);
+                box-shadow: 0 13px 22px rgba(0, 0, 0, 0.10);
             }}
 
             .deck-tooltip {{
                 font-size: 12px !important;
-                border-radius: 12px !important;
-                padding: 10px !important;
-                background: rgba(20, 30, 45, 0.92) !important;
+                border-radius: 13px !important;
+                padding: 10px 12px !important;
+                background: rgba(17, 17, 17, 0.92) !important;
                 color: #FFFFFF !important;
+                box-shadow: 0 10px 18px rgba(0,0,0,0.22) !important;
             }}
         </style>
     </head>
@@ -1451,43 +1480,40 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         value = float(getattr(row, "predicted_kwh"))
 
         if i == 1:
-            state = "급증"
+            state = "PEAK"
+            state_kr = "급증"
             state_class = "hot"
-            title = "최고 수요 권역"
-            sub = "충전 대기 가능성을 우선 확인하세요"
+            title = "가장 높은 충전수요가 예상됩니다"
         elif i <= 3:
-            state = "주의"
+            state = "WATCH"
+            state_kr = "주의"
             state_class = "watch"
-            title = "운영 여유 확인"
-            sub = "충전기 가용 상태를 확인하세요"
-        elif i <= 5:
-            state = "관찰"
-            state_class = "monitor"
-            title = "추가 모니터링"
-            sub = "피크 전후 수요 변화를 확인하세요"
+            title = "충전기 운영 여유를 확인하세요"
         else:
-            state = "관찰"
+            state = "MONITOR"
+            state_kr = "관찰"
             state_class = "monitor"
-            title = "수요 변화 관찰"
-            sub = "시간대별 변화를 함께 확인하세요"
+            title = "수요 변화를 함께 모니터링하세요"
 
         cards_html += f"""
-        <div class="traffic-alert-card">
-            <div class="state-circle {state_class}">
-                <span>{state}</span>
+        <div class="ev-alert-card">
+            <div class="alert-left">
+                <div class="state-circle {state_class}">
+                    <span>{state_kr}</span>
+                </div>
             </div>
 
-            <div class="alert-content">
-                <div class="zone-title">{escape_html(label)}</div>
-                <div class="zone-sub">{escape_html(title)}</div>
-                <div class="zone-desc">{escape_html(sub)}</div>
+            <div class="alert-center">
+                <div class="alert-brand">{state}</div>
+                <div class="alert-zone">{escape_html(label)}</div>
+                <div class="alert-copy">{escape_html(title)}</div>
             </div>
 
-            <div class="alert-side">
-                <div class="chip-label">예측수요</div>
-                <div class="chip-value">{value:,.1f} kWh</div>
-                <div class="chip-label second">시간</div>
-                <div class="chip-value">{selected_time}</div>
+            <div class="alert-right">
+                <div class="right-label">예측수요</div>
+                <div class="right-value">{value:,.1f} kWh</div>
+                <div class="right-label time">시간</div>
+                <div class="right-value">{selected_time}</div>
             </div>
         </div>
         """
@@ -1501,6 +1527,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     <head>
     <meta charset="utf-8" />
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
+
         html, body {{
             margin: 0;
             padding: 0;
@@ -1535,7 +1563,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             bottom: 0;
             left: 0;
             right: 0;
-            height: 28px;
+            height: 30px;
             z-index: 3;
             pointer-events: none;
             background: linear-gradient(0deg, rgba(255,255,255,0.98), rgba(255,255,255,0));
@@ -1546,120 +1574,113 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             transform: translateY(0);
         }}
 
-        .traffic-alert-card {{
-            min-height: 104px;
+        .ev-alert-card {{
+            min-height: 110px;
             display: grid;
-            grid-template-columns: 62px minmax(0, 1fr) 108px;
+            grid-template-columns: 62px minmax(0, 1fr) 106px;
             align-items: center;
-            gap: 12px;
-            background: #F8F8F8;
-            border: 1px solid #EEF1F5;
+            gap: 13px;
+            background: #FFFFFF;
+            border: 1.1px solid rgba(20, 20, 20, 0.22);
             border-radius: 18px;
-            padding: 13px 14px;
+            padding: 14px 14px;
             box-sizing: border-box;
-            margin-bottom: 12px;
-            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.045);
+            margin-bottom: 14px;
+            box-shadow: 0 13px 22px rgba(0, 0, 0, 0.12);
         }}
 
         .state-circle {{
-            width: 54px;
-            height: 54px;
+            width: 55px;
+            height: 55px;
             border-radius: 999px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #FFFFFF;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 800;
             letter-spacing: -0.035em;
-            box-shadow: 0 8px 14px rgba(20, 30, 45, 0.12);
-            flex-shrink: 0;
+            box-shadow: 0 9px 15px rgba(0, 0, 0, 0.14);
         }}
 
         .state-circle.hot {{
-            background: #FF4A4A;
+            background: #FF3F4F;
         }}
 
         .state-circle.watch {{
-            background: #F59E0B;
+            background: #F5A000;
         }}
 
         .state-circle.monitor {{
-            background: #64748B;
+            background: #657386;
         }}
 
-        .alert-content {{
+        .alert-center {{
             min-width: 0;
-            overflow: visible;
         }}
 
-        .zone-title {{
-            color: #172033;
-            font-size: 14.5px;
-            font-weight: 800;
-            letter-spacing: -0.035em;
+        .alert-brand {{
+            color: #1F78B4;
+            font-family: "Holtwood One SC", Georgia, serif;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            line-height: 1;
+            margin-bottom: 8px;
+        }}
+
+        .alert-zone {{
+            color: #111111;
+            font-size: 15px;
+            font-weight: 850;
+            letter-spacing: -0.045em;
             line-height: 1.28;
             word-break: keep-all;
-            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
-        .zone-sub {{
+        .alert-copy {{
             margin-top: 6px;
-            color: #2F3A4C;
-            font-size: 12.5px;
-            font-weight: 600;
-            line-height: 1.32;
-            word-break: keep-all;
-            overflow-wrap: anywhere;
-            white-space: normal;
-        }}
-
-        .zone-desc {{
-            margin-top: 4px;
-            color: #6F7C8D;
-            font-size: 11.2px;
+            color: #555C66;
+            font-size: 11.4px;
             font-weight: 500;
             line-height: 1.35;
             word-break: keep-all;
-            overflow-wrap: anywhere;
             white-space: normal;
         }}
 
-        .alert-side {{
+        .alert-right {{
             display: grid;
-            grid-template-columns: auto;
             justify-items: end;
             align-items: center;
-            min-width: 104px;
         }}
 
-        .chip-label {{
+        .right-label {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
             min-width: 70px;
             height: 21px;
             border-radius: 999px;
-            background: #A6A6A6;
+            background: #9A9A9A;
             color: #FFFFFF;
-            font-size: 10.5px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 650;
             line-height: 1;
         }}
 
-        .chip-label.second {{
-            margin-top: 6px;
+        .right-label.time {{
+            margin-top: 8px;
         }}
 
-        .chip-value {{
-            color: #172033;
+        .right-value {{
+            color: #111111;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 750;
             line-height: 1.15;
-            margin-top: 4px;
+            margin-top: 5px;
             white-space: nowrap;
-            letter-spacing: -0.015em;
+            letter-spacing: -0.02em;
         }}
     </style>
     </head>
@@ -1682,7 +1703,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             const HOLD_DURATION = 1900;
 
             function getCards() {{
-                return Array.from(track.querySelectorAll(".traffic-alert-card"));
+                return Array.from(track.querySelectorAll(".ev-alert-card"));
             }}
 
             function getOffsetForIndex(targetIndex) {{
@@ -1760,7 +1781,7 @@ def build_selected_detail_html(
     <div class="selected-detail-card">
         <div class="detail-card-header">
             <div>
-                <div class="detail-card-kicker">선택 생활권 상세</div>
+                <div class="detail-card-kicker">SELECTED AREA</div>
                 <div class="detail-card-title">{escape_html(selected_label)}</div>
                 <div class="detail-card-id">{escape_html(selected_zone_id)}</div>
             </div>
@@ -1826,6 +1847,8 @@ def render_chat_panel(
     <head>
     <meta charset="utf-8" />
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
+
         html, body {{
             margin: 0;
             padding: 0;
@@ -1838,8 +1861,8 @@ def render_chat_panel(
             overflow-y: auto;
             padding: 8px 4px 8px 2px;
             box-sizing: border-box;
-            border-top: 1px solid #EEF2F7;
-            border-bottom: 1px solid #EEF2F7;
+            border-top: 1px solid rgba(20, 20, 20, 0.08);
+            border-bottom: 1px solid rgba(20, 20, 20, 0.08);
             background: transparent;
         }}
 
@@ -1858,7 +1881,7 @@ def render_chat_panel(
 
         .chat-bubble-row {{
             display: flex;
-            margin-bottom: 10px;
+            margin-bottom: 11px;
         }}
 
         .chat-bubble-row.user {{
@@ -1871,80 +1894,83 @@ def render_chat_panel(
 
         .chat-bubble {{
             max-width: 88%;
-            border-radius: 15px;
-            padding: 10px 12px;
+            border-radius: 16px;
+            padding: 11px 13px;
             font-size: 12px;
-            font-weight: 600;
-            line-height: 1.52;
+            font-weight: 560;
+            line-height: 1.58;
             word-break: keep-all;
             box-sizing: border-box;
         }}
 
         .chat-bubble.user {{
-            background: #2E6BEA;
+            background: #1F78B4;
             color: #FFFFFF;
             border-bottom-right-radius: 5px;
+            box-shadow: 0 9px 16px rgba(31, 120, 180, 0.24);
         }}
 
         .chat-bubble.assistant {{
-            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
-            color: #2F3747;
-            border: 1px solid #DDE7F2;
+            background: #FFFFFF;
+            color: #111111;
+            border: 1px solid rgba(20, 20, 20, 0.20);
             border-bottom-left-radius: 5px;
-            box-shadow: 0 6px 14px rgba(24, 55, 90, 0.05);
+            box-shadow: 0 10px 18px rgba(0, 0, 0, 0.10);
         }}
 
         .selected-detail-card {{
-            margin: 12px 2px 8px 2px;
-            padding: 13px;
-            border-radius: 17px;
-            border: 1px solid #DDE7F2;
-            background: linear-gradient(180deg, #FFFFFF 0%, #F9FBFE 100%);
-            box-shadow: 0 8px 18px rgba(24, 55, 90, 0.065);
+            margin: 13px 2px 8px 2px;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1.1px solid rgba(20, 20, 20, 0.22);
+            background: #FFFFFF;
+            box-shadow: 0 13px 22px rgba(0, 0, 0, 0.12);
             box-sizing: border-box;
         }}
 
         .detail-card-kicker {{
-            color: #6F7C8D;
+            color: #1F78B4;
+            font-family: "Holtwood One SC", Georgia, serif;
             font-size: 11px;
-            font-weight: 800;
-            margin-bottom: 3px;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            margin-bottom: 5px;
         }}
 
         .detail-card-title {{
-            color: #172033;
+            color: #111111;
             font-size: 18px;
-            font-weight: 800;
+            font-weight: 850;
             letter-spacing: -0.045em;
             line-height: 1.25;
         }}
 
         .detail-card-id {{
-            color: #178554;
-            font-size: 11.5px;
-            font-weight: 700;
+            color: #5F666F;
+            font-size: 11px;
+            font-weight: 600;
             margin-top: 4px;
         }}
 
         .detail-card-meta {{
-            margin-top: 10px;
+            margin-top: 11px;
             display: flex;
             flex-direction: column;
             gap: 7px;
         }}
 
         .meta-label {{
-            color: #7A8797;
+            color: #777D86;
             font-size: 10.5px;
-            font-weight: 700;
+            font-weight: 650;
             margin-bottom: 2px;
         }}
 
         .meta-text {{
-            color: #4D5A6B;
+            color: #333333;
             font-size: 11.5px;
             font-weight: 500;
-            line-height: 1.38;
+            line-height: 1.42;
             word-break: keep-all;
         }}
 
@@ -1956,8 +1982,8 @@ def render_chat_panel(
         }}
 
         .detail-metric {{
-            background: #FFFFFF;
-            border: 1px solid #E4ECF5;
+            background: #FAFAFA;
+            border: 1px solid rgba(20, 20, 20, 0.12);
             border-radius: 13px;
             padding: 9px 10px;
             min-height: 58px;
@@ -1965,16 +1991,16 @@ def render_chat_panel(
         }}
 
         .metric-label {{
-            color: #7A8797;
+            color: #777D86;
             font-size: 10.5px;
             font-weight: 600;
             margin-bottom: 4px;
         }}
 
         .metric-value {{
-            color: #172033;
+            color: #111111;
             font-size: 17px;
-            font-weight: 800;
+            font-weight: 820;
             letter-spacing: -0.04em;
         }}
 
@@ -1983,8 +2009,8 @@ def render_chat_panel(
             margin-top: 4px;
             padding: 2px 6px;
             border-radius: 999px;
-            background: #EAF8EF;
-            color: #178554;
+            background: #EAF4FA;
+            color: #1F78B4;
             font-size: 10.5px;
             font-weight: 700;
         }}
@@ -2474,7 +2500,8 @@ with alert_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
             "수요 급증 알림",
-            "선택 시각 기준 수요가 높은 권역을 표시합니다.",
+            "선택 시각 기준 충전수요가 높은 생활권을 보여줍니다.",
+            kicker="DEMAND WATCH",
         )
 
         draw_alerts_stack(top10, selected_time)
@@ -2490,10 +2517,8 @@ with map_col:
         with header_left:
             panel_title(
                 "충전수요지도",
-                (
-                    f"{selected_dt:%Y-%m-%d %H:%M} · Daily Slot {daily_slot} / 47 · "
-                    f"전체 Time Index {global_time_idx}"
-                ),
+                f"{selected_dt:%Y-%m-%d %H:%M} · 서울시 생활권별 예측 충전수요",
+                kicker="E-VLOG MAP",
             )
 
         with header_right:
@@ -2536,8 +2561,10 @@ with map_col:
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
-            "모도리",
-            "자연어로 날짜, 시간, 위치를 입력하세요.",
+            "MODORI",
+            "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.",
+            kicker="AI ASSISTANT",
+            brand=True,
         )
 
         render_chat_panel(
