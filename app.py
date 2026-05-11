@@ -38,6 +38,9 @@ TIME_UNIT_MINUTES = 30
 DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
+# 모도리가 안내할 때 사용할 유일한 예시 문장
+FIXED_QUERY_EXAMPLE = "2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
+
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
 CHAT_SCROLL_HEIGHT = 430
@@ -727,7 +730,7 @@ def llm_extract_query(
         ["생활권역ID", "생활권역표시명", "행정동명목록"]
     ].head(80).to_dict(orient="records")
 
-    system_prompt = """
+    system_prompt = f"""
 너는 전기차 충전수요 지도 서비스의 자연어 질의 해석기다.
 사용자의 한국어 질의를 분석해 intent, 날짜, 시간, 위치를 추출한다.
 
@@ -735,13 +738,13 @@ def llm_extract_query(
 설명 문장은 출력하지 않는다.
 
 출력 형식:
-{
+{{
   "date_text": "사용자가 말한 날짜 표현 또는 null",
   "time_text": "사용자가 말한 시간 표현 또는 null",
   "location_text": "사용자가 말한 위치/동/구/생활권 표현 또는 null",
   "intent": "demand_lookup | service_explanation | greeting | other",
   "needs_data_lookup": true 또는 false
-}
+}}
 
 intent 규칙:
 - 특정 날짜/시간/위치의 충전수요, 예측, 피크, 순위, 지도 조회를 원하면 demand_lookup.
@@ -751,6 +754,12 @@ intent 규칙:
 - demand_lookup일 때만 needs_data_lookup=true.
 - service_explanation, greeting, other는 needs_data_lookup=false.
 - 임의로 예측값을 만들지 마라.
+
+중요한 예시 규칙:
+- 사용자에게 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
+  "{FIXED_QUERY_EXAMPLE}"
+- "내일", "오늘", "오후 3시", "강남구", "서울역"처럼 날짜·시간·위치가 불완전하거나 데이터셋 확인이 안 된 예시는 만들지 않는다.
+- 충전수요 조회 예시는 반드시 연도, 월, 일, 시간, 위치를 모두 포함해야 한다.
 """
 
     user_prompt = f"""
@@ -770,7 +779,6 @@ JSON만 출력하라.
     parsed = safe_json_loads(llm_text or "")
 
     if not parsed:
-        # LLM 호출 실패 또는 JSON 파싱 실패 시 간단한 휴리스틱
         if re.search(r"어떻게|작동|원리|방식|설명|사용법|뭐야|무엇|데이터|모델|지도", text):
             intent = "service_explanation"
             needs_data_lookup = False
@@ -902,7 +910,6 @@ def parse_user_query(
         or location_text
     )
 
-    # 데이터 조회가 아닌 일반 대화, 사용법, 서비스 설명 질문은 여기서 종료
     if not needs_data_lookup and not has_demand_keyword:
         return {
             "ok": False,
@@ -914,14 +921,13 @@ def parse_user_query(
             "llm_extract": llm_result,
         }
 
-    # 수요 관련 단어가 있지만 날짜/시간/위치 조건이 부족한 경우
     if has_demand_keyword and not has_any_condition:
         return {
             "ok": False,
             "reason": "missing_conditions",
             "message": (
-                "충전수요 예측을 조회하려면 날짜, 시간, 위치가 필요합니다. "
-                "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
+                "충전수요 예측을 조회하려면 연도, 월, 일, 시간, 위치가 모두 필요합니다. "
+                f"예: {FIXED_QUERY_EXAMPLE}"
             ),
             "date": fallback_date,
             "time": fallback_time,
@@ -938,7 +944,8 @@ def parse_user_query(
             "reason": "date_unavailable",
             "message": (
                 f"{any_date} 날짜는 현재 예측 데이터셋에 존재하지 않습니다. "
-                f"현재 조회 가능한 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지입니다."
+                f"현재 조회 가능한 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지입니다. "
+                f"예: {FIXED_QUERY_EXAMPLE}"
             ),
             "date": fallback_date,
             "time": fallback_time,
@@ -955,8 +962,9 @@ def parse_user_query(
             "ok": False,
             "reason": "missing_date",
             "message": (
-                "조회할 날짜를 찾지 못했습니다. "
-                f"현재 데이터는 {available_dates[0]}부터 {available_dates[-1]}까지 조회할 수 있습니다."
+                "조회할 날짜를 찾지 못했습니다. 연도, 월, 일을 모두 포함해 입력해 주세요. "
+                f"현재 데이터는 {available_dates[0]}부터 {available_dates[-1]}까지 조회할 수 있습니다. "
+                f"예: {FIXED_QUERY_EXAMPLE}"
             ),
             "date": fallback_date,
             "time": fallback_time,
@@ -975,7 +983,8 @@ def parse_user_query(
             "reason": "time_unavailable",
             "message": (
                 f"{parsed_date} {any_time} 시간대는 현재 예측 데이터셋에 존재하지 않습니다. "
-                "현재 서비스는 예측 CSV에 포함된 30분 단위 시간대만 조회할 수 있습니다."
+                "현재 서비스는 예측 CSV에 포함된 30분 단위 시간대만 조회할 수 있습니다. "
+                f"예: {FIXED_QUERY_EXAMPLE}"
             ),
             "date": fallback_date,
             "time": fallback_time,
@@ -991,7 +1000,10 @@ def parse_user_query(
         return {
             "ok": False,
             "reason": "missing_time",
-            "message": "조회할 시간을 찾지 못했습니다. 예: 오후 6시, 18시, 18:00처럼 입력해 주세요.",
+            "message": (
+                "조회할 시간을 찾지 못했습니다. 연도, 월, 일, 시간, 위치를 모두 포함해 입력해 주세요. "
+                f"예: {FIXED_QUERY_EXAMPLE}"
+            ),
             "date": fallback_date,
             "time": fallback_time,
             "zone_id": fallback_zone_id,
@@ -1007,7 +1019,8 @@ def parse_user_query(
             "reason": "location_unavailable",
             "message": (
                 "입력한 위치는 현재 서울시 생활권 데이터셋에서 찾을 수 없습니다. "
-                "서울시 행정동, 자치구, 생활권 이름을 기준으로 다시 입력해 주세요."
+                "서울시 행정동, 자치구, 생활권 이름을 기준으로 다시 입력해 주세요. "
+                f"예: {FIXED_QUERY_EXAMPLE}"
             ),
             "date": fallback_date,
             "time": fallback_time,
@@ -2026,7 +2039,7 @@ def build_conversational_answer(
     available_dates = sorted(pred["date_str"].unique())
     chat_context = get_recent_chat_context(messages)
 
-    system_prompt = """
+    system_prompt = f"""
 너는 서울시 생활권별 전기차 충전수요 예측 서비스 E-Vlog의 대화형 LLM '모도리'다.
 
 너는 단순 안내 챗봇이 아니라, 사용자의 질문 의도를 이해해서 자연스럽게 답해야 한다.
@@ -2041,6 +2054,12 @@ def build_conversational_answer(
 - 한국어로 답변한다.
 - 3~7문장 정도로 답변한다.
 - 예측값은 절대 임의로 만들지 않는다.
+
+예시 규칙:
+- 사용자에게 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
+  "{FIXED_QUERY_EXAMPLE}"
+- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
+- 충전수요 조회에는 연도, 월, 일, 시간, 위치가 모두 필요하다고 안내한다.
 """
 
     user_prompt = f"""
@@ -2060,12 +2079,14 @@ LLM 해석 결과:
 서비스 정보:
 - 이 서비스는 서울시 생활권별 전기차 충전수요를 예측하는 서비스다.
 - 사용자는 날짜, 시간, 위치를 자연어로 입력할 수 있다.
+- 정확한 조회를 위해서는 연도, 월, 일, 시간, 위치가 모두 필요하다.
 - 시스템은 사용자의 문장에서 날짜, 시간, 위치를 해석한다.
 - 이후 GitHub/앱에 포함된 예측 CSV에서 해당 조건의 predicted_kwh 값을 조회한다.
 - 지도는 해당 생활권을 확대하고, 3D 막대로 수요 크기를 시각화한다.
 - 예측 데이터 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지다.
 - 30분 단위 시간대만 조회할 수 있다.
 - 서울시 생활권 경계 데이터에 포함된 위치만 조회할 수 있다.
+- 사용 가능한 예시는 반드시 "{FIXED_QUERY_EXAMPLE}" 하나만 사용한다.
 
 사용자의 질문에 맞게 자연스럽게 답변하라.
 """
@@ -2075,12 +2096,11 @@ LLM 해석 결과:
     if llm_answer and llm_answer.strip():
         return llm_answer.strip()
 
-    # LLM 호출 실패 시에도 반복 안내문이 나오지 않도록 질문 유형별 fallback 제공
     if reason == "service_explanation" or re.search(r"어떻게|작동|원리|방식|설명|사용법|데이터|모델|지도", user_text):
         return (
-            "이 서비스는 사용자가 입력한 날짜, 시간, 위치를 먼저 해석한 뒤, "
+            "이 서비스는 사용자가 입력한 연도, 월, 일, 시간, 위치를 먼저 해석한 뒤, "
             "예측 결과 CSV에서 해당 조건의 충전수요 값을 찾아 보여주는 방식으로 작동합니다.\n\n"
-            "예를 들어 `2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘`라고 입력하면, "
+            f"예를 들어 `{FIXED_QUERY_EXAMPLE}`라고 입력하면, "
             "날짜는 2025-11-25, 시간은 18:00, 위치는 청운효자동이 포함된 생활권으로 변환됩니다. "
             "그 다음 해당 생활권의 예측 kWh, 수요 순위, 피크 시간 등을 지도와 함께 보여줍니다."
         )
@@ -2089,20 +2109,21 @@ LLM 해석 결과:
         return (
             "안녕하세요. 저는 모도리입니다.\n\n"
             "서울시 생활권별 전기차 충전수요를 예측 데이터에서 찾아 설명해 드릴 수 있습니다. "
-            "보고 싶은 날짜, 시간, 위치를 함께 입력해 주시면 해당 생활권의 수요를 조회해 드릴게요."
+            "정확한 조회를 위해 연도, 월, 일, 시간, 위치를 함께 입력해 주세요.\n\n"
+            f"예: {FIXED_QUERY_EXAMPLE}"
         )
 
-    if reason in {"missing_conditions", "missing_date", "missing_time", "location_unavailable"}:
+    if reason in {"missing_conditions", "missing_date", "missing_time", "location_unavailable", "date_unavailable", "time_unavailable"}:
         return (
             f"{reason_message}\n\n"
-            "예를 들어 `2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘`처럼 "
-            "날짜, 시간, 위치를 함께 입력해 주세요."
+            f"예: {FIXED_QUERY_EXAMPLE}"
         )
 
     return (
         "저는 전기차 충전수요 예측을 도와주는 모도리입니다.\n\n"
         "잡담도 이해할 수 있지만, 가장 잘할 수 있는 일은 서울시 생활권별 충전수요를 날짜와 시간 기준으로 찾아 설명하는 것입니다. "
-        "궁금한 위치와 시간을 알려주시면 예측 결과를 확인해 드릴게요."
+        "정확한 조회를 위해 연도, 월, 일, 시간, 위치를 함께 입력해 주세요.\n\n"
+        f"예: {FIXED_QUERY_EXAMPLE}"
     )
 
 
@@ -2168,7 +2189,7 @@ def build_llm_answer(
 
     chat_context = get_recent_chat_context(messages)
 
-    system_prompt = """
+    system_prompt = f"""
 너는 E-Vlog 서비스의 전기차 충전수요 분석 LLM '모도리'다.
 너는 실제 LLM처럼 자연스럽게 대화하되, 수요 예측 수치와 관련된 내용은 반드시 제공된 facts만 근거로 답변한다.
 
@@ -2181,6 +2202,11 @@ def build_llm_answer(
 - 한국어로 답변한다.
 - 4~8문장 정도로 답변한다.
 - 수치는 facts 값 그대로 사용한다.
+
+예시 규칙:
+- 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
+  "{FIXED_QUERY_EXAMPLE}"
+- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
 """
 
     user_prompt = f"""
@@ -2285,9 +2311,9 @@ if "messages" not in st.session_state:
             "role": "assistant",
             "content": (
                 "안녕하세요. 저는 모도리입니다.\n\n"
-                "보고 싶은 날짜, 시간, 위치를 자연어로 입력하면 "
+                "보고 싶은 연도, 월, 일, 시간, 위치를 자연어로 입력하면 "
                 "예측 결과 파일을 조회해 해당 생활권의 충전수요를 알려드립니다.\n\n"
-                "예: 2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
+                f"예: {FIXED_QUERY_EXAMPLE}"
             ),
         }
     ]
@@ -2522,7 +2548,7 @@ with chat_col:
         with st.form("chat_form", clear_on_submit=True):
             user_text = st.text_input(
                 "질문 입력",
-                placeholder="예: 2025년 11월 25일 18시에 청운효자동 수요",
+                placeholder=f"예: {FIXED_QUERY_EXAMPLE}",
                 label_visibility="collapsed",
             )
             submitted = st.form_submit_button("질문하기", use_container_width=True)
