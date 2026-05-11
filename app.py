@@ -24,10 +24,15 @@ except Exception:
 # =========================================================
 BASE_DIR = Path(__file__).resolve().parent
 
-PRED_CSV_PATH = BASE_DIR / "gru_test_predictions_simple.csv"
+# 새 모델 예측 결과
+PRED_FILE_PATH = BASE_DIR / "preds.npy"
+TRUE_FILE_PATH = BASE_DIR / "trues.npy"
+
 META_JSON_PATH = BASE_DIR / "meta.json"
 AREA_EXCEL_PATH = BASE_DIR / "area_info.xlsx"
 SHP_PATH = BASE_DIR / "UPIS_SHP_ZON100.shp"
+
+MODEL_DISPLAY_NAME = "OUR MODEL"
 
 SOURCE_EPSG = 5174
 TARGET_EPSG = 4326
@@ -105,10 +110,6 @@ st.markdown(
         gap: 0.42rem;
     }
 
-    /*
-    핵심:
-    내부 카드가 아니라 큰 3개 패널에만 그림자 적용
-    */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF;
         border-radius: 20px;
@@ -540,13 +541,134 @@ def load_meta(meta_path: Path) -> Dict:
 
 
 @st.cache_data(show_spinner="예측 결과 로딩 중...")
-def load_predictions(pred_path: Path, meta: Dict) -> Tuple[pd.DataFrame, str, str | None]:
-    pred = pd.read_csv(pred_path)
+def load_predictions(
+    pred_path: Path,
+    meta: Dict,
+    true_path: Path | None = None,
+) -> Tuple[pd.DataFrame, str, str | None]:
+    """
+    CSV / Parquet / NPY 예측 결과를 모두 지원하는 로더.
+
+    새 모델의 preds.npy가 (N, H, Z, 1) 형태라면,
+    서비스에서는 첫 번째 horizon, 즉 H=0만 사용합니다.
+    이후 기존 서비스와 동일하게
+    sample_idx, zone_idx, predicted_kwh 형태로 변환합니다.
+    """
+
+    zone_ids = meta["zone_ids"]
+    n_zones_meta = len(zone_ids)
+    suffix = pred_path.suffix.lower()
+
+    # =====================================================
+    # 1) NPY 예측 결과 로딩
+    # =====================================================
+    if suffix == ".npy":
+        pred_arr = np.load(pred_path)
+
+        if pred_arr.ndim == 4:
+            # (N, H, Z, 1) -> 첫 horizon 사용
+            pred_arr = pred_arr[:, 0, :, 0]
+
+        elif pred_arr.ndim == 3:
+            if pred_arr.shape[-1] == 1:
+                # (N, Z, 1)
+                pred_arr = pred_arr[:, :, 0]
+            else:
+                # (N, H, Z)로 들어온 경우 첫 horizon 사용
+                pred_arr = pred_arr[:, 0, :]
+
+        elif pred_arr.ndim == 2:
+            # (N, Z)
+            pass
+
+        else:
+            raise ValueError(
+                f"지원하지 않는 preds.npy shape입니다: {pred_arr.shape}. "
+                "예상 shape은 (N,H,Z,1), (N,Z,1), (N,Z) 중 하나입니다."
+            )
+
+        n_samples, n_zones = pred_arr.shape
+
+        if n_zones != n_zones_meta:
+            raise ValueError(
+                f"예측 결과의 zone 수({n_zones})와 meta.json의 zone_ids 수({n_zones_meta})가 다릅니다."
+            )
+
+        pred_arr = np.nan_to_num(pred_arr, nan=0.0, posinf=0.0, neginf=0.0)
+        pred_arr = np.clip(pred_arr, 0, None)
+
+        pred = pd.DataFrame(
+            {
+                "sample_idx": np.repeat(np.arange(n_samples), n_zones),
+                "zone_idx": np.tile(np.arange(n_zones), n_samples),
+                "predicted_kwh": pred_arr.reshape(-1),
+            }
+        )
+
+        true_col = None
+
+        if true_path is not None and true_path.exists():
+            true_arr = np.load(true_path)
+
+            if true_arr.ndim == 4:
+                true_arr = true_arr[:, 0, :, 0]
+            elif true_arr.ndim == 3:
+                if true_arr.shape[-1] == 1:
+                    true_arr = true_arr[:, :, 0]
+                else:
+                    true_arr = true_arr[:, 0, :]
+            elif true_arr.ndim == 2:
+                pass
+            else:
+                raise ValueError(
+                    f"지원하지 않는 trues.npy shape입니다: {true_arr.shape}"
+                )
+
+            if true_arr.shape != pred_arr.shape:
+                raise ValueError(
+                    f"preds.npy shape {pred_arr.shape}와 trues.npy shape {true_arr.shape}가 다릅니다."
+                )
+
+            true_arr = np.nan_to_num(true_arr, nan=0.0, posinf=0.0, neginf=0.0)
+            true_arr = np.clip(true_arr, 0, None)
+
+            pred["y_true_kwh"] = true_arr.reshape(-1)
+            true_col = "y_true_kwh"
+
+        zone_map = pd.DataFrame(
+            {
+                "zone_idx": list(range(n_zones_meta)),
+                "생활권역ID": zone_ids,
+            }
+        )
+
+        pred = pred.merge(zone_map, on="zone_idx", how="left")
+
+        if pred["생활권역ID"].isna().any():
+            bad = pred[pred["생활권역ID"].isna()]["zone_idx"].unique()
+            raise ValueError(f"meta.json과 매칭되지 않는 zone_idx가 있습니다: {bad}")
+
+        pred = add_datetime_to_predictions(pred, meta)
+
+        return pred, "predicted_kwh", true_col
+
+    # =====================================================
+    # 2) CSV / Parquet 예측 결과 로딩
+    # =====================================================
+    if suffix == ".csv":
+        pred = pd.read_csv(pred_path)
+    elif suffix in [".parquet", ".pq"]:
+        pred = pd.read_parquet(pred_path)
+    else:
+        raise ValueError(
+            f"지원하지 않는 예측 파일 형식입니다: {pred_path.name}. "
+            "csv, parquet, npy만 지원합니다."
+        )
 
     required_cols = {"sample_idx", "zone_idx"}
     missing = required_cols - set(pred.columns)
     if missing:
-        raise ValueError(f"예측 CSV에 필수 컬럼이 없습니다: {missing}")
+        raise ValueError(f"예측 파일에 필수 컬럼이 없습니다: {missing}")
 
     pred_col = get_prediction_column(pred)
     true_col = get_true_column(pred)
@@ -556,7 +678,6 @@ def load_predictions(pred_path: Path, meta: Dict) -> Tuple[pd.DataFrame, str, st
     pred["zone_idx"] = pd.to_numeric(pred["zone_idx"], errors="coerce").astype(int)
     pred[pred_col] = pred[pred_col].clip(lower=0)
 
-    zone_ids = meta["zone_ids"]
     zone_map = pd.DataFrame(
         {
             "zone_idx": list(range(len(zone_ids))),
@@ -575,6 +696,7 @@ def load_predictions(pred_path: Path, meta: Dict) -> Tuple[pd.DataFrame, str, st
 
     if true_col is not None and true_col != "y_true_kwh":
         pred = pred.rename(columns={true_col: "y_true_kwh"})
+        true_col = "y_true_kwh"
 
     return pred, "predicted_kwh", true_col
 
@@ -999,7 +1121,7 @@ def parse_user_query(
             "reason": "time_unavailable",
             "message": (
                 f"{parsed_date} {any_time} 시간대는 현재 예측 데이터셋에 존재하지 않습니다. "
-                "현재 서비스는 예측 CSV에 포함된 30분 단위 시간대만 조회할 수 있습니다. "
+                "현재 서비스는 예측 파일에 포함된 30분 단위 시간대만 조회할 수 있습니다. "
                 f"예: {FIXED_QUERY_EXAMPLE}"
             ),
             "date": fallback_date,
@@ -1828,8 +1950,6 @@ def render_chat_panel(
 ) -> None:
     items_html = ""
 
-    # 내부 스크롤 제거를 위해 최근 메시지만 표시
-    # 너무 많은 대화가 쌓여도 iframe 내부에서 스크롤이 생기지 않도록 제한
     visible_messages = messages[-4:] if len(messages) > 4 else messages
 
     for msg in visible_messages:
@@ -2094,10 +2214,11 @@ LLM 해석 결과:
 
 서비스 정보:
 - 이 서비스는 서울시 생활권별 전기차 충전수요를 예측하는 서비스다.
+- 현재 지도는 {MODEL_DISPLAY_NAME}의 예측 결과 파일을 사용한다.
 - 사용자는 날짜, 시간, 위치를 자연어로 입력할 수 있다.
 - 정확한 조회를 위해서는 연도, 월, 일, 시간, 위치가 모두 필요하다.
 - 시스템은 사용자의 문장에서 날짜, 시간, 위치를 해석한다.
-- 이후 GitHub/앱에 포함된 예측 CSV에서 해당 조건의 predicted_kwh 값을 조회한다.
+- 이후 앱에 포함된 예측 파일에서 해당 조건의 predicted_kwh 값을 조회한다.
 - 지도는 해당 생활권을 확대하고, 3D 막대로 수요 크기를 시각화한다.
 - 예측 데이터 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지다.
 - 30분 단위 시간대만 조회할 수 있다.
@@ -2115,7 +2236,7 @@ LLM 해석 결과:
     if reason == "service_explanation" or re.search(r"어떻게|작동|원리|방식|설명|사용법|데이터|모델|지도", user_text):
         return (
             "이 서비스는 사용자가 입력한 연도, 월, 일, 시간, 위치를 먼저 해석한 뒤, "
-            "예측 결과 CSV에서 해당 조건의 충전수요 값을 찾아 보여주는 방식으로 작동합니다.\n\n"
+            f"{MODEL_DISPLAY_NAME}의 예측 결과 파일에서 해당 조건의 충전수요 값을 찾아 보여주는 방식으로 작동합니다.\n\n"
             f"예를 들어 `{FIXED_QUERY_EXAMPLE}`라고 입력하면, "
             "날짜는 2025-11-25, 시간은 18:00, 위치는 청운효자동이 포함된 생활권으로 변환됩니다. "
             "그 다음 해당 생활권의 예측 kWh, 수요 순위, 피크 시간 등을 지도와 함께 보여줍니다."
@@ -2188,6 +2309,7 @@ def build_llm_answer(
         )
 
     facts = {
+        "model": MODEL_DISPLAY_NAME,
         "user_query": user_text,
         "date": selected_date,
         "time": selected_time,
@@ -2210,6 +2332,7 @@ def build_llm_answer(
 너는 실제 LLM처럼 자연스럽게 대화하되, 수요 예측 수치와 관련된 내용은 반드시 제공된 facts만 근거로 답변한다.
 
 중요 규칙:
+- 현재 예측 결과는 {MODEL_DISPLAY_NAME} 기반이다.
 - facts에 없는 예측값, 순위, 원인, 외부 사건은 절대 만들지 않는다.
 - 사용자의 질문에 직접 답한다.
 - 사용자가 짧게 물어봐도 자연스럽게 맥락을 보완해 설명한다.
@@ -2262,7 +2385,11 @@ facts:
 # =========================================================
 try:
     meta = load_meta(META_JSON_PATH)
-    pred, pred_col, true_col = load_predictions(PRED_CSV_PATH, meta)
+    pred, pred_col, true_col = load_predictions(
+        PRED_FILE_PATH,
+        meta,
+        TRUE_FILE_PATH,
+    )
     area_info = load_area_info(AREA_EXCEL_PATH)
     boundary_gdf = load_living_area_gdf(SHP_PATH, meta["zone_ids"])
 except Exception as e:
@@ -2328,7 +2455,7 @@ if "messages" not in st.session_state:
             "content": (
                 "안녕하세요. 저는 모도리입니다.\n\n"
                 "보고 싶은 연도, 월, 일, 시간, 위치를 자연어로 입력하면 "
-                "예측 결과 파일을 조회해 해당 생활권의 충전수요를 알려드립니다.\n\n"
+                f"{MODEL_DISPLAY_NAME}의 예측 결과 파일을 조회해 해당 생활권의 충전수요를 알려드립니다.\n\n"
                 f"예: {FIXED_QUERY_EXAMPLE}"
             ),
         }
@@ -2508,7 +2635,7 @@ with map_col:
             panel_title(
                 "충전수요지도",
                 (
-                    f"{selected_dt:%Y-%m-%d %H:%M} · 서울시 생활권별 예측 충전수요"
+                    f"{selected_dt:%Y-%m-%d %H:%M} · {MODEL_DISPLAY_NAME} 기반 서울시 생활권별 예측 충전수요"
                 ),
                 kicker="E-VLOG MAP",
             )
