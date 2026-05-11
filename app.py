@@ -421,9 +421,9 @@ def get_gemini_client() -> Optional[Any]:
 
 def get_gemini_model() -> str:
     try:
-        return st.secrets.get("GEMINI_MODEL", "gemini-1.5-flash")
+        return st.secrets.get("GEMINI_MODEL", "gemini-2.0-flash")
     except Exception:
-        return os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+        return os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 
 
 def call_gemini_text(
