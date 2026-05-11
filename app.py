@@ -1596,8 +1596,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
-    # 4개 알림 카드 고정 표시
-    alert_rows = top_df.head(4).copy()
+    # 실제 로테이션에는 8개까지 사용하되, 화면에는 4개 높이만 보이도록 설정
+    alert_rows = top_df.head(8).copy()
     cards_html = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
@@ -1643,6 +1643,10 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         </div>
         """
 
+    # 무한 루프처럼 보이게 하기 위해 카드 복제
+    loop_cards_html = cards_html + cards_html
+    card_count = len(alert_rows)
+
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -1661,20 +1665,16 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
 
         .alert-stack-panel {{
             position: relative;
-            height: 508px;
+            height: 504px;
             overflow: hidden;
             box-sizing: border-box;
             padding: 4px 2px 0 0;
             background: transparent;
         }}
 
-        /*
-        하단 흐림 효과 제거:
-        before/after gradient 없음
-        */
-
         .alert-scroll-track {{
             transform: translateY(0);
+            will-change: transform;
         }}
 
         .ev-alert-card {{
@@ -1801,11 +1801,78 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
     </style>
     </head>
     <body>
-        <div class="alert-stack-panel">
-            <div class="alert-scroll-track">
-                {cards_html}
+        <div class="alert-stack-panel" id="alertPanel">
+            <div class="alert-scroll-track" id="alertTrack">
+                {loop_cards_html}
             </div>
         </div>
+
+        <script>
+            const panel = document.getElementById("alertPanel");
+            const track = document.getElementById("alertTrack");
+            const originalCount = {card_count};
+
+            let index = 0;
+            let isPausedByHover = false;
+
+            const MOVE_DURATION = 620;
+            const HOLD_DURATION = 1900;
+
+            function getCards() {{
+                return Array.from(track.querySelectorAll(".ev-alert-card"));
+            }}
+
+            function getOffsetForIndex(targetIndex) {{
+                const cards = getCards();
+                if (!cards[targetIndex]) return 0;
+                return cards[targetIndex].offsetTop;
+            }}
+
+            function moveTo(targetIndex, withTransition = true) {{
+                const offset = getOffsetForIndex(targetIndex);
+
+                if (withTransition) {{
+                    track.style.transition = `transform ${{MOVE_DURATION}}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+                }} else {{
+                    track.style.transition = "none";
+                }}
+
+                track.style.transform = `translateY(-${{offset}}px)`;
+            }}
+
+            function resetIfNeeded() {{
+                if (index >= originalCount) {{
+                    index = 0;
+                    moveTo(0, false);
+                    void track.offsetHeight;
+                }}
+            }}
+
+            function tick() {{
+                if (isPausedByHover) {{
+                    setTimeout(tick, HOLD_DURATION);
+                    return;
+                }}
+
+                index += 1;
+                moveTo(index, true);
+
+                setTimeout(() => {{
+                    resetIfNeeded();
+                    setTimeout(tick, HOLD_DURATION);
+                }}, MOVE_DURATION);
+            }}
+
+            panel.addEventListener("mouseenter", () => {{
+                isPausedByHover = true;
+            }});
+
+            panel.addEventListener("mouseleave", () => {{
+                isPausedByHover = false;
+            }});
+
+            setTimeout(tick, HOLD_DURATION);
+        </script>
     </body>
     </html>
     """
