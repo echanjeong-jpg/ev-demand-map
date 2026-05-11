@@ -38,7 +38,6 @@ TIME_UNIT_MINUTES = 30
 DEFAULT_DATE = "2025-11-25"
 DEFAULT_TIME = "18:00"
 
-# 모도리가 안내할 때 사용할 유일한 예시 문장
 FIXED_QUERY_EXAMPLE = "2025년 11월 25일 오후 6시에 청운효자동 수요 보여줘"
 
 PANEL_HEIGHT = 625
@@ -74,11 +73,12 @@ st.markdown(
 
     .stApp {
         background: #FFFFFF !important;
+        box-shadow: none !important;
     }
 
     .block-container {
-        padding-top: 1.05rem;
-        padding-bottom: 0.6rem;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
         max-width: 1440px;
     }
 
@@ -102,9 +102,13 @@ st.markdown(
     }
 
     div[data-testid="stVerticalBlock"] {
-        gap: 0.55rem;
+        gap: 0.42rem;
     }
 
+    /*
+    핵심:
+    내부 카드가 아니라 큰 3개 패널에만 그림자 적용
+    */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: #FFFFFF;
         border-radius: 20px;
@@ -115,71 +119,63 @@ st.markdown(
         backdrop-filter: none;
     }
 
-    .panel-title {
-        color: #111111;
-        font-size: 24px;
-        font-weight: 900;
-        letter-spacing: -0.055em;
-        margin-bottom: 3px;
-        line-height: 1.08;
+    .panel-kicker {
+        color: #1F78B4;
+        font-family: "Holtwood One SC", Georgia, serif;
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: -0.015em;
+        line-height: 1;
+        margin-bottom: 6px;
+        text-transform: uppercase;
     }
 
-    .panel-title.brand-blue {
-        color: #1F78B4;
-        font-family: 'Holtwood One SC', Georgia, serif;
-        font-size: 27px;
-        font-weight: 400;
-        letter-spacing: -0.035em;
+    .panel-title {
+        color: #111111;
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: -0.06em;
+        margin-bottom: 3px;
+        line-height: 1.12;
     }
 
     .panel-subtitle {
-        color: #555C66;
-        font-size: 12.2px;
-        font-weight: 600;
-        margin-bottom: 11px;
-        line-height: 1.42;
-        word-break: keep-all;
-    }
-
-    .section-kicker {
-        color: #1F78B4;
-        font-family: 'Holtwood One SC', Georgia, serif;
-        font-size: 13px;
-        font-weight: 400;
-        letter-spacing: -0.02em;
-        margin-bottom: 6px;
+        color: #5F666F;
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 10px;
+        line-height: 1.35;
     }
 
     .legend-wrap {
         display: flex;
         align-items: center;
         gap: 9px;
-        margin-top: 9px;
-        color: #363C45;
-        font-weight: 650;
-        font-size: 11.5px;
+        margin-top: 8px;
+        color: #555C66;
+        font-weight: 600;
+        font-size: 12px;
     }
 
     .legend-bar {
         height: 8px;
         flex: 1;
         border-radius: 999px;
-        background: linear-gradient(90deg, #E5EFFB, #8BB8F0, #1F78B4, #0B3152);
-        border: 1px solid rgba(20, 30, 45, 0.14);
-        box-shadow: 0 5px 12px rgba(31, 120, 180, 0.16);
+        background: linear-gradient(90deg, #E4EDF7, #86B3F7, #2E6BEA, #132D6B);
+        box-shadow: none;
     }
 
     div[data-testid="stMetric"] {
-        background: #FFFFFF;
-        border: 1px solid rgba(30, 30, 30, 0.22);
-        border-radius: 15px;
+        background: #FAFAFA;
+        border: 1px solid rgba(20, 20, 20, 0.12);
+        border-radius: 16px;
         padding: 10px 12px;
         min-height: 82px;
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.10);
+        box-shadow: none;
     }
 
     div[data-testid="stMetricLabel"] {
-        color: #6E747D;
+        color: #777D86;
         font-size: 11px;
         font-weight: 600;
     }
@@ -187,8 +183,8 @@ st.markdown(
     div[data-testid="stMetricValue"] {
         color: #111111;
         font-size: 20px;
-        font-weight: 850;
-        letter-spacing: -0.045em;
+        font-weight: 800;
+        letter-spacing: -0.04em;
     }
 
     div[data-testid="stMetricDelta"] {
@@ -197,8 +193,8 @@ st.markdown(
 
     iframe {
         border-radius: 16px;
-        box-shadow: 0 14px 24px rgba(0, 0, 0, 0.12);
-        border: 1px solid rgba(30, 30, 30, 0.18);
+        box-shadow: none !important;
+        border: none !important;
     }
 
     div[data-testid="stTextInput"] {
@@ -208,8 +204,8 @@ st.markdown(
     div[data-testid="stTextInput"] > div {
         background: #FFFFFF !important;
         border-radius: 14px !important;
-        border: 1px solid rgba(20, 20, 20, 0.25) !important;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.09) !important;
+        border: 1px solid rgba(20, 20, 20, 0.18) !important;
+        box-shadow: none !important;
     }
 
     div[data-testid="stTextInput"] input {
@@ -218,12 +214,12 @@ st.markdown(
         border-radius: 14px !important;
         min-height: 40px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         border: none !important;
     }
 
     div[data-testid="stTextInput"] input::placeholder {
-        color: #9AA0A8 !important;
+        color: #8A8F98 !important;
         opacity: 1 !important;
         font-weight: 500;
     }
@@ -235,18 +231,18 @@ st.markdown(
     }
 
     div[data-testid="stFormSubmitButton"] button {
-        border-radius: 14px;
-        min-height: 42px;
+        border-radius: 13px;
+        min-height: 40px;
         font-weight: 850;
         background: #1F78B4;
         color: white;
         border: 0;
         margin-top: -0.15rem;
-        box-shadow: 0 10px 18px rgba(31, 120, 180, 0.28);
+        box-shadow: none;
     }
 
     div[data-testid="stFormSubmitButton"] button:hover {
-        background: #17679D;
+        background: #17669B;
         color: white;
         border: 0;
     }
@@ -272,20 +268,14 @@ st.markdown(
 # =========================================================
 # 화면 보조 함수
 # =========================================================
-def panel_title(
-    title: str,
-    subtitle: str | None = None,
-    kicker: str | None = None,
-    brand: bool = False,
-) -> None:
-    title_class = "panel-title brand-blue" if brand else "panel-title"
-    kicker_html = f'<div class="section-kicker">{kicker}</div>' if kicker else ""
+def panel_title(title: str, subtitle: str | None = None, kicker: str | None = None) -> None:
+    kicker_html = f'<div class="panel-kicker">{kicker}</div>' if kicker else ""
 
     if subtitle:
         st.markdown(
             f"""
             {kicker_html}
-            <div class="{title_class}">{title}</div>
+            <div class="panel-title">{title}</div>
             <div class="panel-subtitle">{subtitle}</div>
             """,
             unsafe_allow_html=True,
@@ -294,7 +284,7 @@ def panel_title(
         st.markdown(
             f"""
             {kicker_html}
-            <div class="{title_class}">{title}</div>
+            <div class="panel-title">{title}</div>
             """,
             unsafe_allow_html=True,
         )
@@ -781,10 +771,10 @@ intent 규칙:
 - service_explanation, greeting, other는 needs_data_lookup=false.
 - 임의로 예측값을 만들지 마라.
 
-중요한 예시 규칙:
+예시 규칙:
 - 사용자에게 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
   "{FIXED_QUERY_EXAMPLE}"
-- "내일", "오늘", "오후 3시", "강남구", "서울역"처럼 날짜·시간·위치가 불완전하거나 데이터셋 확인이 안 된 예시는 만들지 않는다.
+- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
 - 충전수요 조회 예시는 반드시 연도, 월, 일, 시간, 위치를 모두 포함해야 한다.
 """
 
@@ -1277,8 +1267,8 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 border-radius: 16px;
                 overflow: hidden;
                 background: #FFFFFF;
-                border: 1px solid rgba(20, 20, 20, 0.18);
-                box-shadow: 0 13px 22px rgba(0, 0, 0, 0.10);
+                border: none;
+                box-shadow: none;
             }}
 
             .deck-tooltip {{
@@ -1287,7 +1277,7 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
                 padding: 10px 12px !important;
                 background: rgba(17, 17, 17, 0.92) !important;
                 color: #FFFFFF !important;
-                box-shadow: 0 10px 18px rgba(0,0,0,0.22) !important;
+                box-shadow: none !important;
             }}
         </style>
     </head>
@@ -1504,7 +1494,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             </div>
 
             <div class="alert-center">
-                <div class="alert-brand">{state}</div>
+                <div class="alert-brand {state_class}">{state}</div>
                 <div class="alert-zone">{escape_html(label)}</div>
                 <div class="alert-copy">{escape_html(title)}</div>
             </div>
@@ -1581,12 +1571,12 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             align-items: center;
             gap: 13px;
             background: #FFFFFF;
-            border: 1.1px solid rgba(20, 20, 20, 0.22);
+            border: 1.1px solid rgba(20, 20, 20, 0.20);
             border-radius: 18px;
             padding: 14px 14px;
             box-sizing: border-box;
             margin-bottom: 14px;
-            box-shadow: 0 13px 22px rgba(0, 0, 0, 0.12);
+            box-shadow: none;
         }}
 
         .state-circle {{
@@ -1600,7 +1590,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             font-size: 13px;
             font-weight: 800;
             letter-spacing: -0.035em;
-            box-shadow: 0 9px 15px rgba(0, 0, 0, 0.14);
+            box-shadow: none;
         }}
 
         .state-circle.hot {{
@@ -1620,13 +1610,24 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
         }}
 
         .alert-brand {{
-            color: #1F78B4;
             font-family: "Holtwood One SC", Georgia, serif;
             font-size: 11px;
             font-weight: 400;
             letter-spacing: -0.02em;
             line-height: 1;
             margin-bottom: 8px;
+        }}
+
+        .alert-brand.hot {{
+            color: #FF3F4F;
+        }}
+
+        .alert-brand.watch {{
+            color: #F5A000;
+        }}
+
+        .alert-brand.monitor {{
+            color: #657386;
         }}
 
         .alert-zone {{
@@ -1827,7 +1828,11 @@ def render_chat_panel(
 ) -> None:
     items_html = ""
 
-    for msg in messages:
+    # 내부 스크롤 제거를 위해 최근 메시지만 표시
+    # 너무 많은 대화가 쌓여도 iframe 내부에서 스크롤이 생기지 않도록 제한
+    visible_messages = messages[-4:] if len(messages) > 4 else messages
+
+    for msg in visible_messages:
         role = msg.get("role", "assistant")
         content = escape_html(msg.get("content", ""))
         role_class = "user" if role == "user" else "assistant"
@@ -1854,28 +1859,16 @@ def render_chat_panel(
             padding: 0;
             background: transparent;
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+            overflow: hidden;
         }}
 
         .chat-scroll-box {{
             height: {CHAT_SCROLL_HEIGHT}px;
-            overflow-y: auto;
+            overflow: hidden;
             padding: 8px 4px 8px 2px;
             box-sizing: border-box;
             border-top: 1px solid rgba(20, 20, 20, 0.08);
             border-bottom: 1px solid rgba(20, 20, 20, 0.08);
-            background: transparent;
-        }}
-
-        .chat-scroll-box::-webkit-scrollbar {{
-            width: 7px;
-        }}
-
-        .chat-scroll-box::-webkit-scrollbar-thumb {{
-            background: #CDD7E5;
-            border-radius: 999px;
-        }}
-
-        .chat-scroll-box::-webkit-scrollbar-track {{
             background: transparent;
         }}
 
@@ -1907,7 +1900,7 @@ def render_chat_panel(
             background: #1F78B4;
             color: #FFFFFF;
             border-bottom-right-radius: 5px;
-            box-shadow: 0 9px 16px rgba(31, 120, 180, 0.24);
+            box-shadow: none;
         }}
 
         .chat-bubble.assistant {{
@@ -1915,7 +1908,7 @@ def render_chat_panel(
             color: #111111;
             border: 1px solid rgba(20, 20, 20, 0.20);
             border-bottom-left-radius: 5px;
-            box-shadow: 0 10px 18px rgba(0, 0, 0, 0.10);
+            box-shadow: none;
         }}
 
         .selected-detail-card {{
@@ -1924,7 +1917,7 @@ def render_chat_panel(
             border-radius: 18px;
             border: 1.1px solid rgba(20, 20, 20, 0.22);
             background: #FFFFFF;
-            box-shadow: 0 13px 22px rgba(0, 0, 0, 0.12);
+            box-shadow: none;
             box-sizing: border-box;
         }}
 
@@ -1988,6 +1981,7 @@ def render_chat_panel(
             padding: 9px 10px;
             min-height: 58px;
             box-sizing: border-box;
+            box-shadow: none;
         }}
 
         .metric-label {{
@@ -2020,10 +2014,6 @@ def render_chat_panel(
         <div class="chat-scroll-box" id="chatbox">
             {items_html}
         </div>
-        <script>
-            const box = document.getElementById("chatbox");
-            box.scrollTop = box.scrollHeight;
-        </script>
     </body>
     </html>
     """
@@ -2499,7 +2489,7 @@ alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 with alert_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         panel_title(
-            "수요 급증 알림",
+            "수요 급증알림",
             "선택 시각 기준 충전수요가 높은 생활권을 보여줍니다.",
             kicker="DEMAND WATCH",
         )
@@ -2517,7 +2507,9 @@ with map_col:
         with header_left:
             panel_title(
                 "충전수요지도",
-                f"{selected_dt:%Y-%m-%d %H:%M} · 서울시 생활권별 예측 충전수요",
+                (
+                    f"{selected_dt:%Y-%m-%d %H:%M} · 서울시 생활권별 예측 충전수요"
+                ),
                 kicker="E-VLOG MAP",
             )
 
@@ -2564,7 +2556,6 @@ with chat_col:
             "MODORI",
             "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.",
             kicker="AI ASSISTANT",
-            brand=True,
         )
 
         render_chat_panel(
