@@ -32,7 +32,7 @@ META_JSON_PATH = BASE_DIR / "meta.json"
 AREA_EXCEL_PATH = BASE_DIR / "area_info.xlsx"
 SHP_PATH = BASE_DIR / "UPIS_SHP_ZON100.shp"
 
-MODEL_DISPLAY_NAME = "OUR MODEL"
+MODEL_DISPLAY_NAME = "E-Vlog"
 
 SOURCE_EPSG = 5174
 TARGET_EPSG = 4326
@@ -1950,7 +1950,8 @@ def render_chat_panel(
 ) -> None:
     items_html = ""
 
-    visible_messages = messages[-4:] if len(messages) > 4 else messages
+    # 모든 대화 메시지를 표시하고, 내부 스크롤을 허용
+    visible_messages = messages
 
     for msg in visible_messages:
         role = msg.get("role", "assistant")
@@ -1984,11 +1985,26 @@ def render_chat_panel(
 
         .chat-scroll-box {{
             height: {CHAT_SCROLL_HEIGHT}px;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             padding: 8px 4px 8px 2px;
             box-sizing: border-box;
             border-top: 1px solid rgba(20, 20, 20, 0.08);
             border-bottom: 1px solid rgba(20, 20, 20, 0.08);
+            background: transparent;
+            scroll-behavior: smooth;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar {{
+            width: 7px;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar-thumb {{
+            background: rgba(120, 130, 145, 0.45);
+            border-radius: 999px;
+        }}
+
+        .chat-scroll-box::-webkit-scrollbar-track {{
             background: transparent;
         }}
 
@@ -2013,6 +2029,7 @@ def render_chat_panel(
             font-weight: 560;
             line-height: 1.58;
             word-break: keep-all;
+            overflow-wrap: anywhere;
             box-sizing: border-box;
         }}
 
@@ -2085,6 +2102,7 @@ def render_chat_panel(
             font-weight: 500;
             line-height: 1.42;
             word-break: keep-all;
+            overflow-wrap: anywhere;
         }}
 
         .detail-metric-grid {{
@@ -2134,6 +2152,13 @@ def render_chat_panel(
         <div class="chat-scroll-box" id="chatbox">
             {items_html}
         </div>
+
+        <script>
+            const box = document.getElementById("chatbox");
+            if (box) {{
+                box.scrollTop = box.scrollHeight;
+            }}
+        </script>
     </body>
     </html>
     """
