@@ -273,6 +273,17 @@ st.markdown(
         font-weight: 700 !important;
     }
 
+    /* 모도리 모델 전환 토글: 2D 지도 보기 토글과 같은 UI 형태로 사용 */
+    div[data-testid="stToggle"] {
+        margin-top: 0.1rem;
+    }
+
+    div[data-testid="stToggle"] p {
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        color: #111111 !important;
+    }
+
     .llm-error-caption {
         color: #9AA6B5;
         font-size: 10px;
@@ -1365,8 +1376,8 @@ def build_selected_detail_html(
         <div class="detail-metric-grid">
             <div class="detail-metric"><div class="metric-label">현재 수요</div><div class="metric-value">{current_kwh:.1f} kWh</div></div>
             <div class="detail-metric"><div class="metric-label">예측 수요</div><div class="metric-value">{pred_30m_kwh:.1f} kWh</div><div class="metric-delta">30분 후</div></div>
-            <div class="detail-metric"><div class="metric-label">피크 시간</div><div class="metric-value">{escape_html(peak_time)}</div><div class="metric-delta">↑ {peak_kwh:.1f} kWh</div></div>
-            <div class="detail-metric"><div class="metric-label">여유 시간</div><div class="metric-value">{escape_html(low_time)}</div><div class="metric-delta low">↓ {low_kwh:.1f} kWh</div></div>
+            <div class="detail-metric"><div class="metric-label">피크 타임</div><div class="metric-value">{escape_html(peak_time)}</div><div class="metric-delta">{peak_kwh:.1f} kWh</div></div>
+            <div class="detail-metric"><div class="metric-label">오프 피크</div><div class="metric-value">{escape_html(low_time)}</div><div class="metric-delta low">{low_kwh:.1f} kWh</div></div>
         </div>
     </div>
     """
@@ -1418,8 +1429,8 @@ def build_fallback_answer(selected_date: str, selected_time: str, selected_label
     return (
         f"{selected_date} {selected_time} 기준으로 요청하신 위치는 {selected_label} 생활권에 포함됩니다.\n\n"
         f"현재 수요는 {metrics['current_kwh']:.1f} kWh이고, {model_label} 기준 30분 후 예측 수요는 {metrics['pred_30m_kwh']:.1f} kWh입니다.\n"
-        f"입력 시각부터 6시간 범위에서 피크 시간은 {metrics['peak_time']}이며, 해당 시각의 예측 수요는 {metrics['peak_kwh']:.1f} kWh입니다.\n"
-        f"같은 6시간 범위에서 상대적으로 여유로운 시간은 {metrics['low_time']}이며, 예측 수요는 {metrics['low_kwh']:.1f} kWh입니다.\n\n"
+        f"입력 시각부터 6시간 범위에서 피크 타임은 {metrics['peak_time']}이며, 해당 시각의 예측 수요는 {metrics['peak_kwh']:.1f} kWh입니다.\n"
+        f"같은 6시간 범위에서 오프 피크는 {metrics['low_time']}이며, 예측 수요는 {metrics['low_kwh']:.1f} kWh입니다.\n\n"
         f"지도와 알림은 현재 선택된 {model_label} 기준으로 표시됩니다."
     )
 
@@ -1449,7 +1460,7 @@ LLM 해석 결과:
 
 서비스 정보:
 - 현재 선택된 모델은 {model_label}이다.
-- 사용자는 모도리 패널 상단 버튼으로 일반 모델과 피크 모델을 전환할 수 있다.
+- 사용자는 모도리 패널 상단 토글 버튼으로 일반 모델과 피크 모델을 전환할 수 있다.
 - 예측 데이터 날짜 범위는 {min_date}부터 {max_date}까지다.
 """
     llm_answer = call_gemini_text(system_prompt, user_prompt, temperature=0.65)
@@ -1459,7 +1470,7 @@ LLM 해석 결과:
     if reason == "service_explanation" or re.search(r"어떻게|작동|원리|방식|설명|사용법|데이터|모델|지도", user_text):
         return (
             f"이 서비스는 사용자가 입력한 연도, 월, 일, 시간, 위치를 해석한 뒤, 현재 선택된 {model_label}의 예측 파일에서 충전수요를 조회합니다.\n\n"
-            "모도리 패널 상단의 모델 선택 버튼으로 일반 모델과 피크 모델을 전환할 수 있고, 전환된 모델 기준으로 지도와 모도리 답변이 함께 바뀝니다. "
+            "모도리 패널 상단의 피크 모델 토글 버튼으로 일반 모델과 피크 모델을 전환할 수 있고, 전환된 모델 기준으로 지도와 모도리 답변이 함께 바뀝니다. "
             f"예: {FIXED_QUERY_EXAMPLE}"
         )
     if reason == "greeting" or re.search(r"안녕|하이|hello|hi", user_text, re.IGNORECASE):
@@ -1484,9 +1495,9 @@ def build_llm_answer(user_text: str, selected_date: str, selected_time: str, sel
         "included_dongs": selected_dongs,
         "current_kwh": round(metrics["current_kwh"], 1),
         "pred_30m_kwh": round(metrics["pred_30m_kwh"], 1),
-        "peak_time_in_next_6h": metrics["peak_time"],
+        "peak_time_next_6h": metrics["peak_time"],
         "peak_kwh": round(metrics["peak_kwh"], 1),
-        "low_time_in_next_6h": metrics["low_time"],
+        "off_peak_time_next_6h": metrics["low_time"],
         "low_kwh": round(metrics["low_kwh"], 1),
         "top5_at_30m_forecast": top_items,
     }
@@ -1667,23 +1678,19 @@ with map_col:
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         mark_panel()
-        title_col, model_col = st.columns([0.56, 0.44], gap="small")
+        title_col, model_col = st.columns([0.62, 0.38], gap="small")
         with title_col:
             panel_title("MODORI", "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.", kicker="AI ASSISTANT")
         with model_col:
-            current_label = MODEL_LABELS[st.session_state.model_mode]
-            model_choice = st.radio(
-                "모델 선택",
-                options=["일반 모델", "피크 모델"],
-                index=0 if current_label == "일반 모델" else 1,
-                horizontal=True,
-                key="model_selector_radio",
-                label_visibility="collapsed",
+            use_peak_model = st.toggle(
+                "피크 모델",
+                value=(st.session_state.model_mode == "peak"),
+                key="model_peak_toggle",
+                help="끄면 일반 모델, 켜면 피크 모델 기준으로 지도와 모도리가 응답합니다.",
             )
-            next_mode = "peak" if model_choice == "피크 모델" else "overall"
+            next_mode = "peak" if use_peak_model else "overall"
             if next_mode != st.session_state.model_mode:
                 st.session_state.model_mode = next_mode
-                st.session_state.show_selected_detail = False
                 st.session_state.animate_zoom = False
                 st.rerun()
 
