@@ -64,7 +64,7 @@ FIXED_QUERY_EXAMPLE = "2025년 11월 25일 오후 6시에 청운효자동 수요
 
 PANEL_HEIGHT = 625
 MAP_HEIGHT = 485
-CHAT_SCROLL_HEIGHT = 430
+CHAT_SCROLL_HEIGHT = 365
 ALERT_HEIGHT = 508
 
 # 입력 시각 기준 30분 후 예측을 지도/알림에 표시
@@ -268,14 +268,40 @@ st.markdown(
         font-size: 11px !important;
     }
 
+    div[data-testid="stToggle"] {
+        margin-top: 0.1rem;
+        min-width: max-content !important;
+    }
+
     div[data-testid="stToggle"] label {
         color: #111111 !important;
         font-weight: 700 !important;
+        white-space: nowrap !important;
+        word-break: keep-all !important;
+        overflow-wrap: normal !important;
+        min-width: max-content !important;
     }
 
-    /* 모도리 모델 전환 토글: 2D 지도 보기 토글과 같은 UI 형태로 사용 */
-    div[data-testid="stToggle"] {
-        margin-top: 0.1rem;
+    div[data-testid="stToggle"] label p {
+        white-space: nowrap !important;
+        word-break: keep-all !important;
+        overflow-wrap: normal !important;
+        min-width: max-content !important;
+    }
+
+    .chat-model-toggle-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 90px;
+        white-space: nowrap;
+    }
+
+    .chat-form-wrap {
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+        padding-right: 2px;
     }
 
     div[data-testid="stToggle"] p {
@@ -1476,7 +1502,7 @@ LLM 해석 결과:
     if reason == "greeting" or re.search(r"안녕|하이|hello|hi", user_text, re.IGNORECASE):
         return f"안녕하세요. 저는 모도리입니다.\n\n현재는 {model_label} 기준으로 서울시 생활권별 전기차 충전수요를 조회할 수 있습니다. 연도, 월, 일, 시간, 위치를 함께 입력해 주세요.\n\n예: {FIXED_QUERY_EXAMPLE}"
     if reason in {"missing_conditions", "missing_date", "missing_time", "location_unavailable", "date_unavailable", "time_unavailable"}:
-        return f"{reason_message}\n\n예: {FIXED_QUERY_EXAMPLE}"
+        return append_example_once(reason_message)
     return f"저는 전기차 충전수요 예측을 도와주는 모도리입니다. 현재는 {model_label} 기준으로 답변하고 있습니다.\n\n예: {FIXED_QUERY_EXAMPLE}"
 
 
@@ -1678,16 +1704,18 @@ with map_col:
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         mark_panel()
-        title_col, model_col = st.columns([0.62, 0.38], gap="small")
+        title_col, model_col = st.columns([0.68, 0.32], gap="small")
         with title_col:
             panel_title("MODORI", "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.", kicker="AI ASSISTANT")
         with model_col:
+            st.markdown('<div class="chat-model-toggle-wrap">', unsafe_allow_html=True)
             use_peak_model = st.toggle(
-                "피크 모델",
+                "피크모델",
                 value=(st.session_state.model_mode == "peak"),
                 key="model_peak_toggle",
                 help="끄면 일반 모델, 켜면 피크 모델 기준으로 지도와 모도리가 응답합니다.",
             )
+            st.markdown('</div>', unsafe_allow_html=True)
             next_mode = "peak" if use_peak_model else "overall"
             if next_mode != st.session_state.model_mode:
                 st.session_state.model_mode = next_mode
@@ -1698,9 +1726,11 @@ with chat_col:
         with chat_placeholder:
             render_chat_panel(st.session_state.messages, selected_detail_html=selected_detail_html, is_typing=False)
 
+        st.markdown('<div class="chat-form-wrap">', unsafe_allow_html=True)
         with st.form("chat_form", clear_on_submit=True):
             user_text = st.text_input("질문 입력", placeholder=f"예: {FIXED_QUERY_EXAMPLE}", label_visibility="collapsed")
             submitted = st.form_submit_button("질문하기", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         if submitted and user_text.strip():
             clean_user_text = user_text.strip()
