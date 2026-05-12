@@ -1678,7 +1678,7 @@ alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 with alert_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         mark_panel()
-        panel_title("수요 급증알림", f"{model_label} 기준 30분 후 예측수요가 높은 생활권을 보여줍니다.", kicker="DEMAND WATCH")
+        panel_title("수요 급증알림", f"30분 후 예측수요가 높은 생활권을 보여줍니다.", kicker="DEMAND WATCH")
         draw_alerts_stack(top10, selected_time)
 
 with map_col:
@@ -1706,7 +1706,7 @@ with chat_col:
         mark_panel()
         title_col, model_col = st.columns([0.68, 0.32], gap="small")
         with title_col:
-            panel_title("MODORI", "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.", kicker="AI ASSISTANT")
+            panel_title("MODORI", "모도리에게 무엇이든 물어보세요.", kicker="AI ASSISTANT")
         with model_col:
             st.markdown('<div class="chat-model-toggle-wrap">', unsafe_allow_html=True)
             use_peak_model = st.toggle(
