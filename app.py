@@ -24,9 +24,9 @@ except Exception:
 # =========================================================
 BASE_DIR = Path(__file__).resolve().parent
 
-# 새 모델 예측 결과
-PRED_FILE_PATH = BASE_DIR / "preds.npy"
-TRUE_FILE_PATH = BASE_DIR / "trues.npy"
+# GitHub에 업로드할 예측 결과 파일
+OVERALL_PRED_FILE_PATH = BASE_DIR / "predictions_v5-overall.npz"
+PEAK_PRED_FILE_PATH = BASE_DIR / "predictions_v5-peak.npz"
 
 META_JSON_PATH = BASE_DIR / "meta.json"
 AREA_EXCEL_PATH = BASE_DIR / "area_info.xlsx"
@@ -356,22 +356,6 @@ def clean_label(label: str) -> str:
     )
 
 
-def get_prediction_column(df: pd.DataFrame) -> str:
-    candidates = ["y_pred_kwh", "predicted_kwh", "pred_kwh", "prediction_kwh"]
-    for col in candidates:
-        if col in df.columns:
-            return col
-    raise ValueError("CSV에 y_pred_kwh 또는 predicted_kwh 컬럼이 필요합니다.")
-
-
-def get_true_column(df: pd.DataFrame) -> str | None:
-    candidates = ["y_true_kwh", "true_kwh", "actual_kwh"]
-    for col in candidates:
-        if col in df.columns:
-            return col
-    return None
-
-
 def kwh_to_color(value: float, vmin: float, vmax: float) -> list[int]:
     if pd.isna(value):
         return [220, 225, 232, 90]
@@ -506,27 +490,6 @@ def call_gemini_text(
         return None
 
 
-def add_datetime_to_predictions(pred: pd.DataFrame, meta: Dict) -> pd.DataFrame:
-    val_end = int(meta["val_end"])
-    look_back = int(meta["look_back"])
-    test_time_offset = val_end + look_back
-
-    pred = pred.copy()
-    pred["global_time_idx"] = pred["sample_idx"].astype(int) + test_time_offset
-    pred["datetime"] = START_DATETIME + pd.to_timedelta(
-        pred["global_time_idx"] * TIME_UNIT_MINUTES,
-        unit="m",
-    )
-
-    pred["date_str"] = pred["datetime"].dt.strftime("%Y-%m-%d")
-    pred["time_str"] = pred["datetime"].dt.strftime("%H:%M")
-    pred["hour"] = pred["datetime"].dt.hour
-    pred["minute"] = pred["datetime"].dt.minute
-    pred["daily_slot"] = pred["hour"] * 2 + (pred["minute"] // 30)
-
-    return pred
-
-
 # =========================================================
 # 데이터 로딩
 # =========================================================
@@ -558,143 +521,124 @@ def load_meta(meta_path: Path) -> Dict:
     )
 
 
+def add_base_datetime_to_sample_df(df: pd.DataFrame, meta: Dict) -> pd.DataFrame:
+    val_end = int(meta["val_end"])
+    look_back = int(meta["look_back"])
+    test_time_offset = val_end + look_back
+
+    df = df.copy()
+    df["global_time_idx"] = df["sample_idx"].astype(int) + test_time_offset
+    df["datetime"] = START_DATETIME + pd.to_timedelta(
+        df["global_time_idx"] * TIME_UNIT_MINUTES,
+        unit="m",
+    )
+    df["date_str"] = df["datetime"].dt.strftime("%Y-%m-%d")
+    df["time_str"] = df["datetime"].dt.strftime("%H:%M")
+    df["hour"] = df["datetime"].dt.hour
+    df["minute"] = df["datetime"].dt.minute
+    df["daily_slot"] = df["hour"] * 2 + (df["minute"] // 30)
+    return df
+
+
 @st.cache_data(show_spinner="예측 결과 로딩 중...")
-def load_predictions(
-    pred_path: Path,
+def load_npz_predictions(
+    npz_path: Path,
     meta: Dict,
-    true_path: Path | None = None,
-) -> Tuple[pd.DataFrame, str, str | None]:
-    zone_ids = meta["zone_ids"]
-    n_zones_meta = len(zone_ids)
-    suffix = pred_path.suffix.lower()
+    model_key: str,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    npz 내부 구조:
+    - y_pred: (N, H, Z, 1)
+    - y_true: (N, H, Z, 1)
 
-    if suffix == ".npy":
-        pred_arr = np.load(pred_path)
+    반환:
+    - point_df: 지도와 선택 시간 조회용 horizon=0 데이터
+    - horizon_df: 입력 시각 기준 6시간 전망용 전체 horizon 데이터
+    """
 
-        if pred_arr.ndim == 4:
-            pred_arr = pred_arr[:, 0, :, 0]
-        elif pred_arr.ndim == 3:
-            if pred_arr.shape[-1] == 1:
-                pred_arr = pred_arr[:, :, 0]
-            else:
-                pred_arr = pred_arr[:, 0, :]
-        elif pred_arr.ndim == 2:
+    if not npz_path.exists():
+        raise FileNotFoundError(f"예측 파일을 찾을 수 없습니다: {npz_path.name}")
+
+    data = np.load(npz_path)
+
+    if "y_pred" not in data:
+        raise ValueError(f"{npz_path.name} 내부에 y_pred가 없습니다.")
+
+    y_pred = data["y_pred"]
+
+    if y_pred.ndim == 4:
+        y_pred = y_pred[:, :, :, 0]
+    elif y_pred.ndim == 3:
+        pass
+    else:
+        raise ValueError(f"{npz_path.name}의 y_pred shape을 지원하지 않습니다: {y_pred.shape}")
+
+    y_true = None
+    if "y_true" in data:
+        y_true = data["y_true"]
+        if y_true.ndim == 4:
+            y_true = y_true[:, :, :, 0]
+        elif y_true.ndim == 3:
             pass
         else:
-            raise ValueError(
-                f"지원하지 않는 preds.npy shape입니다: {pred_arr.shape}. "
-                "예상 shape은 (N,H,Z,1), (N,Z,1), (N,Z) 중 하나입니다."
-            )
+            y_true = None
 
-        n_samples, n_zones = pred_arr.shape
+    n_samples, n_horizons, n_zones = y_pred.shape
+    zone_ids = list(meta["zone_ids"])
 
-        if n_zones != n_zones_meta:
-            raise ValueError(
-                f"예측 결과의 zone 수({n_zones})와 meta.json의 zone_ids 수({n_zones_meta})가 다릅니다."
-            )
-
-        pred_arr = np.nan_to_num(pred_arr, nan=0.0, posinf=0.0, neginf=0.0)
-        pred_arr = np.clip(pred_arr, 0, None)
-
-        pred = pd.DataFrame(
-            {
-                "sample_idx": np.repeat(np.arange(n_samples), n_zones),
-                "zone_idx": np.tile(np.arange(n_zones), n_samples),
-                "predicted_kwh": pred_arr.reshape(-1),
-            }
-        )
-
-        true_col = None
-
-        if true_path is not None and true_path.exists():
-            true_arr = np.load(true_path)
-
-            if true_arr.ndim == 4:
-                true_arr = true_arr[:, 0, :, 0]
-            elif true_arr.ndim == 3:
-                if true_arr.shape[-1] == 1:
-                    true_arr = true_arr[:, :, 0]
-                else:
-                    true_arr = true_arr[:, 0, :]
-            elif true_arr.ndim == 2:
-                pass
-            else:
-                raise ValueError(
-                    f"지원하지 않는 trues.npy shape입니다: {true_arr.shape}"
-                )
-
-            if true_arr.shape != pred_arr.shape:
-                raise ValueError(
-                    f"preds.npy shape {pred_arr.shape}와 trues.npy shape {true_arr.shape}가 다릅니다."
-                )
-
-            true_arr = np.nan_to_num(true_arr, nan=0.0, posinf=0.0, neginf=0.0)
-            true_arr = np.clip(true_arr, 0, None)
-
-            pred["y_true_kwh"] = true_arr.reshape(-1)
-            true_col = "y_true_kwh"
-
-        zone_map = pd.DataFrame(
-            {
-                "zone_idx": list(range(n_zones_meta)),
-                "생활권역ID": zone_ids,
-            }
-        )
-
-        pred = pred.merge(zone_map, on="zone_idx", how="left")
-
-        if pred["생활권역ID"].isna().any():
-            bad = pred[pred["생활권역ID"].isna()]["zone_idx"].unique()
-            raise ValueError(f"meta.json과 매칭되지 않는 zone_idx가 있습니다: {bad}")
-
-        pred = add_datetime_to_predictions(pred, meta)
-
-        return pred, "predicted_kwh", true_col
-
-    if suffix == ".csv":
-        pred = pd.read_csv(pred_path)
-    elif suffix in [".parquet", ".pq"]:
-        pred = pd.read_parquet(pred_path)
-    else:
+    if n_zones != len(zone_ids):
         raise ValueError(
-            f"지원하지 않는 예측 파일 형식입니다: {pred_path.name}. "
-            "csv, parquet, npy만 지원합니다."
+            f"{npz_path.name}의 zone 수({n_zones})와 meta.json zone_ids 수({len(zone_ids)})가 다릅니다."
         )
 
-    required_cols = {"sample_idx", "zone_idx"}
-    missing = required_cols - set(pred.columns)
-    if missing:
-        raise ValueError(f"예측 파일에 필수 컬럼이 없습니다: {missing}")
+    y_pred = np.nan_to_num(y_pred, nan=0.0, posinf=0.0, neginf=0.0)
+    y_pred = np.clip(y_pred, 0, None)
 
-    pred_col = get_prediction_column(pred)
-    true_col = get_true_column(pred)
+    if y_true is not None and y_true.shape == y_pred.shape:
+        y_true = np.nan_to_num(y_true, nan=0.0, posinf=0.0, neginf=0.0)
+        y_true = np.clip(y_true, 0, None)
 
-    pred[pred_col] = pd.to_numeric(pred[pred_col], errors="coerce")
-    pred["sample_idx"] = pd.to_numeric(pred["sample_idx"], errors="coerce").astype(int)
-    pred["zone_idx"] = pd.to_numeric(pred["zone_idx"], errors="coerce").astype(int)
-    pred[pred_col] = pred[pred_col].clip(lower=0)
+    sample_idx = np.repeat(np.arange(n_samples), n_horizons * n_zones)
+    horizon = np.tile(np.repeat(np.arange(n_horizons), n_zones), n_samples)
+    zone_idx = np.tile(np.arange(n_zones), n_samples * n_horizons)
+
+    horizon_df = pd.DataFrame(
+        {
+            "sample_idx": sample_idx,
+            "horizon": horizon,
+            "zone_idx": zone_idx,
+            "predicted_kwh": y_pred.reshape(-1),
+            "model_key": model_key,
+        }
+    )
+
+    if y_true is not None and y_true.shape == y_pred.shape:
+        horizon_df["actual_kwh"] = y_true.reshape(-1)
+    else:
+        horizon_df["actual_kwh"] = np.nan
 
     zone_map = pd.DataFrame(
         {
-            "zone_idx": list(range(len(zone_ids))),
+            "zone_idx": list(range(n_zones)),
             "생활권역ID": zone_ids,
         }
     )
 
-    pred = pred.merge(zone_map, on="zone_idx", how="left")
+    horizon_df = horizon_df.merge(zone_map, on="zone_idx", how="left")
+    horizon_df = add_base_datetime_to_sample_df(horizon_df, meta)
 
-    if pred["생활권역ID"].isna().any():
-        bad = pred[pred["생활권역ID"].isna()]["zone_idx"].unique()
-        raise ValueError(f"meta.json과 매칭되지 않는 zone_idx가 있습니다: {bad}")
+    horizon_df["forecast_datetime"] = horizon_df["datetime"] + pd.to_timedelta(
+        horizon_df["horizon"] * TIME_UNIT_MINUTES,
+        unit="m",
+    )
+    horizon_df["forecast_date_str"] = horizon_df["forecast_datetime"].dt.strftime("%Y-%m-%d")
+    horizon_df["forecast_time_str"] = horizon_df["forecast_datetime"].dt.strftime("%H:%M")
 
-    pred = add_datetime_to_predictions(pred, meta)
-    pred = pred.rename(columns={pred_col: "predicted_kwh"})
+    point_df = horizon_df[horizon_df["horizon"] == 0].copy()
+    point_df = point_df.drop(columns=["forecast_datetime", "forecast_date_str", "forecast_time_str"])
+    point_df = point_df.rename(columns={"actual_kwh": "current_kwh"})
 
-    if true_col is not None and true_col != "y_true_kwh":
-        pred = pred.rename(columns={true_col: "y_true_kwh"})
-        true_col = "y_true_kwh"
-
-    return pred, "predicted_kwh", true_col
+    return point_df, horizon_df
 
 
 @st.cache_data(show_spinner="생활권역 정보 로딩 중...")
@@ -1174,6 +1118,77 @@ def parse_user_query(
 
 
 # =========================================================
+# 예측 상세 계산
+# =========================================================
+def get_zone_forecast_summary(
+    pred_point: pd.DataFrame,
+    pred_horizon: pd.DataFrame,
+    selected_date: str,
+    selected_time: str,
+    selected_zone_id: str,
+) -> dict:
+    selected_point = pred_point[
+        (pred_point["date_str"] == selected_date)
+        & (pred_point["time_str"] == selected_time)
+        & (pred_point["생활권역ID"] == selected_zone_id)
+    ].copy()
+
+    if selected_point.empty:
+        return {
+            "current_kwh": 0.0,
+            "forecast_30m_kwh": 0.0,
+            "peak_time": "-",
+            "peak_kwh": 0.0,
+            "low_time": "-",
+            "low_kwh": 0.0,
+        }
+
+    selected_sample_idx = int(selected_point["sample_idx"].iloc[0])
+
+    current_raw = selected_point["current_kwh"].iloc[0]
+    if pd.isna(current_raw):
+        current_kwh = float(selected_point["predicted_kwh"].iloc[0])
+    else:
+        current_kwh = float(current_raw)
+
+    zone_horizon = pred_horizon[
+        (pred_horizon["sample_idx"] == selected_sample_idx)
+        & (pred_horizon["생활권역ID"] == selected_zone_id)
+    ].copy()
+
+    zone_horizon = zone_horizon.sort_values("horizon").head(12)
+
+    if zone_horizon.empty:
+        return {
+            "current_kwh": current_kwh,
+            "forecast_30m_kwh": float(selected_point["predicted_kwh"].iloc[0]),
+            "peak_time": "-",
+            "peak_kwh": 0.0,
+            "low_time": "-",
+            "low_kwh": 0.0,
+        }
+
+    # 30분 후 예측 수요: horizon=1 우선, 없으면 horizon=0
+    h1 = zone_horizon[zone_horizon["horizon"] == 1]
+    if h1.empty:
+        h1 = zone_horizon[zone_horizon["horizon"] == 0]
+
+    forecast_30m_kwh = float(h1["predicted_kwh"].iloc[0])
+
+    peak_row = zone_horizon.loc[zone_horizon["predicted_kwh"].idxmax()]
+    low_row = zone_horizon.loc[zone_horizon["predicted_kwh"].idxmin()]
+
+    return {
+        "current_kwh": current_kwh,
+        "forecast_30m_kwh": forecast_30m_kwh,
+        "peak_time": str(peak_row["forecast_time_str"]),
+        "peak_kwh": float(peak_row["predicted_kwh"]),
+        "low_time": str(low_row["forecast_time_str"]),
+        "low_kwh": float(low_row["predicted_kwh"]),
+    }
+
+
+# =========================================================
 # 지도 데이터 생성
 # =========================================================
 def prepare_map_gdf(
@@ -1202,6 +1217,7 @@ def prepare_map_gdf(
                 "time_str",
                 "daily_slot",
                 "predicted_kwh",
+                "current_kwh",
             ]
         ],
         on="생활권역ID",
@@ -1688,17 +1704,9 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             box-shadow: none;
         }}
 
-        .state-circle.hot {{
-            background: #FF3F4F;
-        }}
-
-        .state-circle.watch {{
-            background: #F5A000;
-        }}
-
-        .state-circle.monitor {{
-            background: #657386;
-        }}
+        .state-circle.hot {{ background: #FF3F4F; }}
+        .state-circle.watch {{ background: #F5A000; }}
+        .state-circle.monitor {{ background: #657386; }}
 
         .alert-center {{
             min-width: 0;
@@ -1713,17 +1721,9 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str):
             margin-bottom: 8px;
         }}
 
-        .alert-brand.hot {{
-            color: #FF3F4F;
-        }}
-
-        .alert-brand.watch {{
-            color: #F5A000;
-        }}
-
-        .alert-brand.monitor {{
-            color: #657386;
-        }}
+        .alert-brand.hot {{ color: #FF3F4F; }}
+        .alert-brand.watch {{ color: #F5A000; }}
+        .alert-brand.monitor {{ color: #657386; }}
 
         .alert-zone {{
             color: #111111;
@@ -1864,12 +1864,12 @@ def build_selected_detail_html(
     selected_label: str,
     selected_zone_id: str,
     selected_dongs: str,
-    zone_pred_kwh: float,
-    zone_rank: int,
-    n_zones: int,
-    total_day_kwh: float,
+    current_kwh: float,
+    forecast_30m_kwh: float,
     peak_time: str,
     peak_kwh: float,
+    low_time: str,
+    low_kwh: float,
     selected_date: str,
     selected_time: str,
 ) -> str:
@@ -1896,21 +1896,23 @@ def build_selected_detail_html(
 
         <div class="detail-metric-grid">
             <div class="detail-metric">
-                <div class="metric-label">현재 예측</div>
-                <div class="metric-value">{zone_pred_kwh:.1f} kWh</div>
+                <div class="metric-label">현재 수요</div>
+                <div class="metric-value">{current_kwh:.1f} kWh</div>
             </div>
             <div class="detail-metric">
-                <div class="metric-label">수요 순위</div>
-                <div class="metric-value">{int(zone_rank)} / {n_zones}</div>
-            </div>
-            <div class="detail-metric">
-                <div class="metric-label">일일 총량</div>
-                <div class="metric-value">{total_day_kwh:.0f} kWh</div>
+                <div class="metric-label">예측 수요</div>
+                <div class="metric-value">{forecast_30m_kwh:.1f} kWh</div>
+                <div class="metric-delta">30분 후</div>
             </div>
             <div class="detail-metric">
                 <div class="metric-label">피크 시간</div>
                 <div class="metric-value">{escape_html(peak_time)}</div>
                 <div class="metric-delta">↑ {peak_kwh:.1f} kWh</div>
+            </div>
+            <div class="detail-metric">
+                <div class="metric-label">여유 시간</div>
+                <div class="metric-value">{escape_html(low_time)}</div>
+                <div class="metric-delta">↓ {low_kwh:.1f} kWh</div>
             </div>
         </div>
     </div>
@@ -2188,21 +2190,25 @@ def build_fallback_answer(
     selected_time: str,
     selected_label: str,
     selected_zone_id: str,
-    zone_pred_kwh: float,
-    zone_rank: int,
-    n_zones: int,
+    selected_dongs: str,
+    current_kwh: float,
+    forecast_30m_kwh: float,
     peak_time: str,
     peak_kwh: float,
-    total_day_kwh: float,
+    low_time: str,
+    low_kwh: float,
+    model_mode_label: str,
 ) -> str:
     return (
         f"{selected_date} {selected_time} 기준으로 요청하신 위치는 "
         f"{selected_label} 생활권에 포함됩니다.\n\n"
-        f"선택 시각 예측 충전수요는 {zone_pred_kwh:.1f} kWh이며, "
-        f"전체 {n_zones}개 생활권 중 {int(zone_rank)}위입니다.\n"
-        f"해당 날짜의 총 예측 충전량은 {total_day_kwh:.0f} kWh이고, "
-        f"피크 시간은 {peak_time}로 예상됩니다.\n\n"
-        f"지도에서는 해당 생활권을 강조하고, 상세 정보는 이 채팅 패널에 표시했습니다."
+        f"현재 수요는 {current_kwh:.1f} kWh이고, "
+        f"30분 후 예측 수요는 {forecast_30m_kwh:.1f} kWh입니다.\n"
+        f"입력 시각부터 6시간 전망 구간에서 피크 시간은 {peak_time}이며 "
+        f"예측 수요는 {peak_kwh:.1f} kWh입니다.\n"
+        f"가장 여유로운 시간대는 {low_time}이며 "
+        f"예측 수요는 {low_kwh:.1f} kWh입니다.\n\n"
+        f"현재 선택된 예측 모드는 {model_mode_label}입니다."
     )
 
 
@@ -2220,24 +2226,13 @@ def build_conversational_answer(
     system_prompt = f"""
 너는 서울시 생활권별 전기차 충전수요 예측 서비스 E-Vlog의 대화형 LLM '모도리'다.
 
-너는 단순 안내 챗봇이 아니라, 사용자의 질문 의도를 이해해서 자연스럽게 답해야 한다.
-다만 예측 수치, 순위, 피크 시간 등 데이터 기반 정보는 제공된 데이터에서 조회된 경우에만 말할 수 있다.
-
 답변 규칙:
 - 사용자가 서비스 작동 방식, 데이터, 모델, 지도, 예측 방식에 대해 물으면 구체적으로 설명한다.
 - 사용자가 인사하면 자연스럽게 인사한다.
-- 사용자가 장난, 욕설, 무관한 말을 하면 짧게 받아주고 서비스 맥락으로 부드럽게 돌린다.
 - 사용자가 날짜, 시간, 위치 없이 수요를 물으면 부족한 항목만 되묻는다.
-- 매번 같은 안내문을 반복하지 않는다.
+- 예측값은 절대 임의로 만들지 않는다.
 - 한국어로 답변한다.
 - 3~7문장 정도로 답변한다.
-- 예측값은 절대 임의로 만들지 않는다.
-
-예시 규칙:
-- 사용자에게 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
-  "{FIXED_QUERY_EXAMPLE}"
-- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
-- 충전수요 조회에는 연도, 월, 일, 시간, 위치가 모두 필요하다고 안내한다.
 """
 
     user_prompt = f"""
@@ -2256,15 +2251,9 @@ LLM 해석 결과:
 
 서비스 정보:
 - 이 서비스는 서울시 생활권별 전기차 충전수요를 예측하는 서비스다.
-- 현재 지도는 {MODEL_DISPLAY_NAME}의 예측 결과 파일을 사용한다.
-- 사용자는 날짜, 시간, 위치를 자연어로 입력할 수 있다.
-- 정확한 조회를 위해서는 연도, 월, 일, 시간, 위치가 모두 필요하다.
-- 시스템은 사용자의 문장에서 날짜, 시간, 위치를 해석한다.
-- 이후 앱에 포함된 예측 파일에서 해당 조건의 predicted_kwh 값을 조회한다.
-- 지도는 해당 생활권을 확대하고, 3D 막대로 수요 크기를 시각화한다.
+- 사용자는 일반 모델과 피크 모델을 전환할 수 있다.
 - 예측 데이터 날짜 범위는 {available_dates[0]}부터 {available_dates[-1]}까지다.
 - 30분 단위 시간대만 조회할 수 있다.
-- 서울시 생활권 경계 데이터에 포함된 위치만 조회할 수 있다.
 - 사용 가능한 예시는 반드시 "{FIXED_QUERY_EXAMPLE}" 하나만 사용한다.
 
 사용자의 질문에 맞게 자연스럽게 답변하라.
@@ -2277,11 +2266,10 @@ LLM 해석 결과:
 
     if reason == "service_explanation" or re.search(r"어떻게|작동|원리|방식|설명|사용법|데이터|모델|지도", user_text):
         return (
-            "이 서비스는 사용자가 입력한 연도, 월, 일, 시간, 위치를 먼저 해석한 뒤, "
-            f"{MODEL_DISPLAY_NAME}의 예측 결과 파일에서 해당 조건의 충전수요 값을 찾아 보여주는 방식으로 작동합니다.\n\n"
-            f"예를 들어 `{FIXED_QUERY_EXAMPLE}`라고 입력하면, "
-            "날짜는 2025-11-25, 시간은 18:00, 위치는 청운효자동이 포함된 생활권으로 변환됩니다. "
-            "그 다음 해당 생활권의 예측 kWh, 수요 순위, 피크 시간 등을 지도와 함께 보여줍니다."
+            "이 서비스는 사용자가 입력한 연도, 월, 일, 시간, 위치를 해석한 뒤, "
+            "선택된 E-Vlog 예측 모델의 결과에서 해당 생활권의 충전수요를 찾아 보여주는 방식으로 작동합니다.\n\n"
+            "일반 모델은 전체적인 예측 안정성을 중심으로 사용하고, 피크 모델은 피크 시간대 예측을 더 잘 반영하기 위해 사용할 수 있습니다. "
+            f"예: {FIXED_QUERY_EXAMPLE}"
         )
 
     if reason == "greeting" or re.search(r"안녕|하이|hello|hi", user_text, re.IGNORECASE):
@@ -2293,14 +2281,10 @@ LLM 해석 결과:
         )
 
     if reason in {"missing_conditions", "missing_date", "missing_time", "location_unavailable", "date_unavailable", "time_unavailable"}:
-        return (
-            f"{reason_message}\n\n"
-            f"예: {FIXED_QUERY_EXAMPLE}"
-        )
+        return f"{reason_message}\n\n예: {FIXED_QUERY_EXAMPLE}"
 
     return (
         "저는 전기차 충전수요 예측을 도와주는 모도리입니다.\n\n"
-        "잡담도 이해할 수 있지만, 가장 잘할 수 있는 일은 서울시 생활권별 충전수요를 날짜와 시간 기준으로 찾아 설명하는 것입니다. "
         "정확한 조회를 위해 연도, 월, 일, 시간, 위치를 함께 입력해 주세요.\n\n"
         f"예: {FIXED_QUERY_EXAMPLE}"
     )
@@ -2331,63 +2315,44 @@ def build_llm_answer(
     selected_label: str,
     selected_zone_id: str,
     selected_dongs: str,
-    zone_pred_kwh: float,
-    zone_rank: int,
-    n_zones: int,
+    current_kwh: float,
+    forecast_30m_kwh: float,
     peak_time: str,
     peak_kwh: float,
-    total_day_kwh: float,
-    top10: pd.DataFrame,
+    low_time: str,
+    low_kwh: float,
+    model_mode_label: str,
     messages: list[dict],
 ) -> str:
-    top_items = []
-    for i, row in enumerate(top10.head(5).itertuples(), start=1):
-        top_items.append(
-            {
-                "rank": i,
-                "zone": getattr(row, "생활권역표시명", getattr(row, "생활권역ID")),
-                "predicted_kwh": round(float(getattr(row, "predicted_kwh")), 1),
-            }
-        )
-
     facts = {
         "model": MODEL_DISPLAY_NAME,
+        "model_mode": model_mode_label,
         "user_query": user_text,
         "date": selected_date,
         "time": selected_time,
         "zone_label": selected_label,
         "zone_id": selected_zone_id,
         "included_dongs": selected_dongs,
-        "predicted_kwh": round(zone_pred_kwh, 1),
-        "rank": int(zone_rank),
-        "num_zones": int(n_zones),
-        "total_day_kwh": round(total_day_kwh, 1),
-        "peak_time": peak_time,
-        "peak_kwh": round(peak_kwh, 1),
-        "top5_at_selected_time": top_items,
+        "current_kwh": round(current_kwh, 1),
+        "forecast_30m_kwh": round(forecast_30m_kwh, 1),
+        "peak_time_within_6h": peak_time,
+        "peak_kwh_within_6h": round(peak_kwh, 1),
+        "low_time_within_6h": low_time,
+        "low_kwh_within_6h": round(low_kwh, 1),
     }
 
     chat_context = get_recent_chat_context(messages)
 
-    system_prompt = f"""
+    system_prompt = """
 너는 E-Vlog 서비스의 전기차 충전수요 분석 LLM '모도리'다.
-너는 실제 LLM처럼 자연스럽게 대화하되, 수요 예측 수치와 관련된 내용은 반드시 제공된 facts만 근거로 답변한다.
+너는 자연스럽게 대화하되, 수요 예측 수치와 관련된 내용은 반드시 제공된 facts만 근거로 답변한다.
 
 중요 규칙:
-- 현재 예측 결과는 {MODEL_DISPLAY_NAME} 기반이다.
 - facts에 없는 예측값, 순위, 원인, 외부 사건은 절대 만들지 않는다.
 - 사용자의 질문에 직접 답한다.
-- 사용자가 짧게 물어봐도 자연스럽게 맥락을 보완해 설명한다.
-- 사용자가 후속 질문을 하면 최근 대화 맥락을 참고한다.
-- 지도에서 해당 생활권이 강조된다는 점을 필요할 때만 언급한다.
 - 한국어로 답변한다.
 - 4~8문장 정도로 답변한다.
 - 수치는 facts 값 그대로 사용한다.
-
-예시 규칙:
-- 예시를 제안해야 할 경우 반드시 다음 예시만 사용한다:
-  "{FIXED_QUERY_EXAMPLE}"
-- "내일", "오늘", "오후 3시", "강남구", "서울역" 같은 임의 예시는 절대 만들지 않는다.
 """
 
     user_prompt = f"""
@@ -2413,54 +2378,29 @@ facts:
         selected_time=selected_time,
         selected_label=selected_label,
         selected_zone_id=selected_zone_id,
-        zone_pred_kwh=zone_pred_kwh,
-        zone_rank=zone_rank,
-        n_zones=n_zones,
+        selected_dongs=selected_dongs,
+        current_kwh=current_kwh,
+        forecast_30m_kwh=forecast_30m_kwh,
         peak_time=peak_time,
         peak_kwh=peak_kwh,
-        total_day_kwh=total_day_kwh,
+        low_time=low_time,
+        low_kwh=low_kwh,
+        model_mode_label=model_mode_label,
     )
 
 
 def build_answer_from_parsed_query(
     clean_user_text: str,
     parsed: Dict,
-    pred: pd.DataFrame,
+    pred_point: pd.DataFrame,
+    pred_horizon: pd.DataFrame,
     area_info: pd.DataFrame,
     messages: list[dict],
+    model_mode_label: str,
 ) -> tuple[str, dict]:
     next_date = parsed["date"]
     next_time = parsed["time"]
     next_zone_id = parsed["zone_id"]
-
-    next_pred_filtered = pred[
-        (pred["date_str"] == next_date)
-        & (pred["time_str"] == next_time)
-    ].copy()
-
-    if next_pred_filtered.empty:
-        return (
-            "선택한 날짜와 시간에 해당하는 예측 데이터가 없습니다.",
-            {"show_selected_detail": False},
-        )
-
-    next_zone_now = next_pred_filtered[
-        next_pred_filtered["생활권역ID"] == next_zone_id
-    ].copy()
-
-    if next_zone_now.empty:
-        return (
-            "입력한 위치에 해당하는 생활권 예측 데이터를 찾지 못했습니다.",
-            {"show_selected_detail": False},
-        )
-
-    next_zone_pred_kwh = float(next_zone_now["predicted_kwh"].iloc[0])
-
-    next_zone_rank = (
-        next_pred_filtered["predicted_kwh"]
-        .rank(method="min", ascending=False)
-        .loc[next_zone_now.index[0]]
-    )
 
     next_selected_area = area_info[
         area_info["생활권역ID"] == next_zone_id
@@ -2477,35 +2417,13 @@ def build_answer_from_parsed_query(
             else ""
         )
 
-    next_day_zone = pred[
-        (pred["date_str"] == next_date)
-        & (pred["생활권역ID"] == next_zone_id)
-    ].copy()
-
-    if not next_day_zone.empty:
-        next_peak_row = next_day_zone.loc[
-            next_day_zone["predicted_kwh"].idxmax()
-        ]
-        next_total_day_kwh = float(next_day_zone["predicted_kwh"].sum())
-        next_peak_time = str(next_peak_row["time_str"])
-        next_peak_kwh = float(next_peak_row["predicted_kwh"])
-    else:
-        next_total_day_kwh = 0.0
-        next_peak_time = "-"
-        next_peak_kwh = 0.0
-
-    next_top10 = next_pred_filtered.sort_values(
-        "predicted_kwh",
-        ascending=False,
-    ).head(10)
-
-    next_top10 = next_top10.merge(
-        area_info[["생활권역ID", "생활권역라벨", "생활권역표시명"]],
-        on="생활권역ID",
-        how="left",
+    summary = get_zone_forecast_summary(
+        pred_point=pred_point,
+        pred_horizon=pred_horizon,
+        selected_date=next_date,
+        selected_time=next_time,
+        selected_zone_id=next_zone_id,
     )
-
-    next_n_zones = pred["zone_idx"].nunique()
 
     answer = build_llm_answer(
         user_text=clean_user_text,
@@ -2514,13 +2432,13 @@ def build_answer_from_parsed_query(
         selected_label=next_selected_label,
         selected_zone_id=next_zone_id,
         selected_dongs=next_selected_dongs,
-        zone_pred_kwh=next_zone_pred_kwh,
-        zone_rank=int(next_zone_rank),
-        n_zones=next_n_zones,
-        peak_time=next_peak_time,
-        peak_kwh=next_peak_kwh,
-        total_day_kwh=next_total_day_kwh,
-        top10=next_top10,
+        current_kwh=summary["current_kwh"],
+        forecast_30m_kwh=summary["forecast_30m_kwh"],
+        peak_time=summary["peak_time"],
+        peak_kwh=summary["peak_kwh"],
+        low_time=summary["low_time"],
+        low_kwh=summary["low_kwh"],
+        model_mode_label=model_mode_label,
         messages=messages,
     )
 
@@ -2532,13 +2450,22 @@ def build_answer_from_parsed_query(
 # =========================================================
 try:
     meta = load_meta(META_JSON_PATH)
-    pred, pred_col, true_col = load_predictions(
-        PRED_FILE_PATH,
+
+    overall_pred, overall_horizon = load_npz_predictions(
+        OVERALL_PRED_FILE_PATH,
         meta,
-        TRUE_FILE_PATH,
+        model_key="overall",
     )
+
+    peak_pred, peak_horizon = load_npz_predictions(
+        PEAK_PRED_FILE_PATH,
+        meta,
+        model_key="peak",
+    )
+
     area_info = load_area_info(AREA_EXCEL_PATH)
     boundary_gdf = load_living_area_gdf(SHP_PATH, meta["zone_ids"])
+
 except Exception as e:
     st.error("데이터 로딩 중 오류가 발생했습니다.")
     st.exception(e)
@@ -2548,6 +2475,18 @@ except Exception as e:
 # =========================================================
 # 세션 상태
 # =========================================================
+if "model_mode" not in st.session_state:
+    st.session_state.model_mode = "overall"
+
+if st.session_state.model_mode == "peak":
+    pred = peak_pred
+    pred_horizon = peak_horizon
+    model_mode_label = "피크 모델"
+else:
+    pred = overall_pred
+    pred_horizon = overall_horizon
+    model_mode_label = "일반 모델"
+
 available_dates_all = sorted(pred["date_str"].unique())
 
 if "selected_date" not in st.session_state:
@@ -2586,12 +2525,6 @@ if "show_selected_detail" not in st.session_state:
 if "animate_zoom" not in st.session_state:
     st.session_state.animate_zoom = False
 
-if "pending_user_query" not in st.session_state:
-    st.session_state.pending_user_query = None
-
-if "pending_invalid_query" not in st.session_state:
-    st.session_state.pending_invalid_query = None
-
 if "last_llm_error" not in st.session_state:
     st.session_state.last_llm_error = None
 
@@ -2602,7 +2535,7 @@ if "messages" not in st.session_state:
             "content": (
                 "안녕하세요. 저는 모도리입니다.\n\n"
                 "보고 싶은 연도, 월, 일, 시간, 위치를 자연어로 입력하면 "
-                f"{MODEL_DISPLAY_NAME}의 예측 결과 파일을 조회해 해당 생활권의 충전수요를 알려드립니다.\n\n"
+                f"E-Vlog의 예측 결과를 조회해 해당 생활권의 충전수요를 알려드립니다.\n\n"
                 f"예: {FIXED_QUERY_EXAMPLE}"
             ),
         }
@@ -2627,8 +2560,6 @@ if pred_filtered.empty:
     st.stop()
 
 selected_dt = pred_filtered["datetime"].iloc[0]
-daily_slot = int(pred_filtered["daily_slot"].iloc[0])
-global_time_idx = int(pred_filtered["global_time_idx"].iloc[0])
 n_zones = pred["zone_idx"].nunique()
 
 zone_now = pred_filtered[pred_filtered["생활권역ID"] == selected_zone_id].copy()
@@ -2637,13 +2568,6 @@ if zone_now.empty:
     selected_zone_id = pred_filtered["생활권역ID"].iloc[0]
     st.session_state.selected_zone_id = selected_zone_id
     zone_now = pred_filtered[pred_filtered["생활권역ID"] == selected_zone_id].copy()
-
-zone_pred_kwh = float(zone_now["predicted_kwh"].iloc[0])
-zone_rank = (
-    pred_filtered["predicted_kwh"]
-    .rank(method="min", ascending=False)
-    .loc[zone_now.index[0]]
-)
 
 selected_area = area_info[area_info["생활권역ID"] == selected_zone_id].copy()
 
@@ -2658,20 +2582,13 @@ else:
         else ""
     )
 
-day_zone = pred[
-    (pred["date_str"] == selected_date)
-    & (pred["생활권역ID"] == selected_zone_id)
-].copy()
-
-if not day_zone.empty:
-    peak_row = day_zone.loc[day_zone["predicted_kwh"].idxmax()]
-    total_day_kwh = float(day_zone["predicted_kwh"].sum())
-    peak_time = str(peak_row["time_str"])
-    peak_kwh = float(peak_row["predicted_kwh"])
-else:
-    total_day_kwh = 0.0
-    peak_time = "-"
-    peak_kwh = 0.0
+forecast_summary = get_zone_forecast_summary(
+    pred_point=pred,
+    pred_horizon=pred_horizon,
+    selected_date=selected_date,
+    selected_time=selected_time,
+    selected_zone_id=selected_zone_id,
+)
 
 top10 = pred_filtered.sort_values("predicted_kwh", ascending=False).head(10)
 top10 = top10.merge(
@@ -2689,10 +2606,6 @@ map_gdf = prepare_map_gdf(
     focus_zone_id=focus_zone_id,
 )
 
-
-# =========================================================
-# 채팅 패널에 표시할 선택 생활권 상세 HTML
-# =========================================================
 selected_detail_html = None
 
 if st.session_state.has_query and st.session_state.show_selected_detail:
@@ -2700,12 +2613,12 @@ if st.session_state.has_query and st.session_state.show_selected_detail:
         selected_label=selected_label,
         selected_zone_id=selected_zone_id,
         selected_dongs=selected_dongs,
-        zone_pred_kwh=zone_pred_kwh,
-        zone_rank=int(zone_rank),
-        n_zones=n_zones,
-        total_day_kwh=total_day_kwh,
-        peak_time=peak_time,
-        peak_kwh=peak_kwh,
+        current_kwh=forecast_summary["current_kwh"],
+        forecast_30m_kwh=forecast_summary["forecast_30m_kwh"],
+        peak_time=forecast_summary["peak_time"],
+        peak_kwh=forecast_summary["peak_kwh"],
+        low_time=forecast_summary["low_time"],
+        low_kwh=forecast_summary["low_kwh"],
         selected_date=selected_date,
         selected_time=selected_time,
     )
@@ -2746,7 +2659,7 @@ with map_col:
             panel_title(
                 "충전수요지도",
                 (
-                    f"{selected_dt:%Y-%m-%d %H:%M} · {MODEL_DISPLAY_NAME} 기반 서울시 생활권별 예측 충전수요"
+                    f"{selected_dt:%Y-%m-%d %H:%M} · {model_mode_label} 기반 서울시 생활권별 예측 충전수요"
                 ),
                 kicker="E-VLOG MAP",
             )
@@ -2792,11 +2705,29 @@ with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         mark_panel()
 
-        panel_title(
-            "MODORI",
-            "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.",
-            kicker="AI ASSISTANT",
-        )
+        header_left, header_right = st.columns([0.58, 0.42], gap="small")
+
+        with header_left:
+            panel_title(
+                "MODORI",
+                "연도, 월, 일, 시간, 위치를 자연어로 입력하세요.",
+                kicker="AI ASSISTANT",
+            )
+
+        with header_right:
+            use_peak_model = st.toggle(
+                "피크 모델",
+                value=(st.session_state.model_mode == "peak"),
+                key="model_mode_toggle",
+            )
+
+            next_model_mode = "peak" if use_peak_model else "overall"
+
+            if next_model_mode != st.session_state.model_mode:
+                st.session_state.model_mode = next_model_mode
+                st.session_state.show_selected_detail = False
+                st.session_state.animate_zoom = False
+                st.rerun()
 
         chat_placeholder = st.empty()
 
@@ -2860,8 +2791,6 @@ with chat_col:
 
                 st.session_state.show_selected_detail = False
                 st.session_state.animate_zoom = False
-                st.session_state.pending_user_query = None
-                st.session_state.pending_invalid_query = None
 
                 st.rerun()
 
@@ -2873,9 +2802,11 @@ with chat_col:
             answer, answer_state = build_answer_from_parsed_query(
                 clean_user_text=clean_user_text,
                 parsed=parsed,
-                pred=pred,
+                pred_point=pred,
+                pred_horizon=pred_horizon,
                 area_info=area_info,
                 messages=st.session_state.messages,
+                model_mode_label=model_mode_label,
             )
 
             st.session_state.messages.append(
@@ -2893,8 +2824,6 @@ with chat_col:
                 answer_state.get("show_selected_detail", True)
             )
             st.session_state.animate_zoom = True
-            st.session_state.pending_user_query = None
-            st.session_state.pending_invalid_query = None
 
             st.rerun()
 
