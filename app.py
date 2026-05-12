@@ -1351,7 +1351,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         html, body {{ margin: 0; padding: 0; background: transparent; font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; overflow: hidden; }}
         .alert-stack-panel {{ position: relative; height: {ALERT_HEIGHT}px; overflow: hidden; box-sizing: border-box; padding: 4px 2px 0 0; background: transparent; }}
         .alert-scroll-track {{ will-change: transform; transform: translateY(0); }}
-        .ev-alert-card {{ height: 112px; display: grid; grid-template-columns: 62px minmax(0, 1fr) 106px; align-items: center; gap: 13px; background: #FFFFFF; border: 1.1px solid rgba(20,20,20,0.20); border-radius: 18px; padding: 14px 14px; box-sizing: border-box; margin-bottom: 14px; box-shadow: none; }}
+        .ev-alert-card {{ height: 120px; display: grid; grid-template-columns: 62px minmax(0, 1fr) 106px; align-items: center; gap: 13px; background: #FFFFFF; border: 1.1px solid rgba(20,20,20,0.20); border-radius: 18px; padding: 14px 14px; box-sizing: border-box; margin-bottom: 14px; box-shadow: none; }}
         .state-circle {{ width: 55px; height: 55px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 13px; font-weight: 800; letter-spacing: -0.035em; }}
         .state-circle.hot {{ background: #FF3F4F; }} .state-circle.watch {{ background: #F5A000; }} .state-circle.monitor {{ background: #657386; }}
         .alert-center {{ min-width: 0; }} .alert-brand {{ font-family: "Holtwood One SC", Georgia, serif; font-size: 11px; font-weight: 400; letter-spacing: -0.02em; line-height: 1; margin-bottom: 8px; }}
