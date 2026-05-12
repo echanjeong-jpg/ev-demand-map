@@ -1349,7 +1349,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
         html, body {{ margin: 0; padding: 0; background: transparent; font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; overflow: hidden; }}
-        .alert-stack-panel {{ position: relative; height: {ALERT_HEIGHT}px; overflow: hidden; box-sizing: border-box; padding: 10px 2px 0 0; background: transparent; }}
+        .alert-stack-panel {{ position: relative; height: {ALERT_HEIGHT}px; overflow: hidden; box-sizing: border-box; padding: 4px 2px 0 0; background: transparent; }}
         .alert-scroll-track {{ will-change: transform; transform: translateY(0); }}
         .ev-alert-card {{ height: 112px; display: grid; grid-template-columns: 62px minmax(0, 1fr) 106px; align-items: center; gap: 13px; background: #FFFFFF; border: 1.1px solid rgba(20,20,20,0.20); border-radius: 18px; padding: 14px 14px; box-sizing: border-box; margin-bottom: 14px; box-shadow: none; }}
         .state-circle {{ width: 55px; height: 55px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 13px; font-weight: 800; letter-spacing: -0.035em; }}
