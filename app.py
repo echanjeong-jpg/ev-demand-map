@@ -1704,7 +1704,7 @@ with map_col:
 with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         mark_panel()
-        title_col, model_col = st.columns([0.60, 0.32], gap="small")
+        title_col, model_col = st.columns([0.50, 0.32], gap="small")
         with title_col:
             panel_title("MODORI", "모도리에게 무엇이든 물어보세요.", kicker="AI ASSISTANT")
         with model_col:
