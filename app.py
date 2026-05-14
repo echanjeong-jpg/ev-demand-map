@@ -64,12 +64,14 @@ FIXED_QUERY_EXAMPLE = "2025년 11월 25일 오후 6시에 청운효자동 수요
 
 PANEL_HEIGHT = 625
 
-# 왼쪽/가운데 패널에 그래프를 넣기 위해 기존보다 조금 줄임
-ALERT_HEIGHT = 375
-MAP_HEIGHT = 350
-FORECAST_GRAPH_HEIGHT = 118
+# 왼쪽/가운데는 상단 본문 패널 + 하단 그래프 패널로 분리
+TOP_PANEL_HEIGHT = 492
+GRAPH_PANEL_HEIGHT = 125
+ALERT_HEIGHT = 392
+MAP_HEIGHT = 365
+FORECAST_GRAPH_HEIGHT = 105
 
-# 오른쪽 LLM 패널은 줄이지 않음
+# 오른쪽 LLM 패널은 기존 높이를 유지
 CHAT_SCROLL_HEIGHT = 410
 
 MAP_HORIZON = 1
@@ -1967,71 +1969,68 @@ def render_forecast_graph_html(
     subtitle: str,
     height: int = FORECAST_GRAPH_HEIGHT,
 ) -> None:
+    # 기상청 시간별 예보 느낌의 12-step 충전수요 그래프를 HTML/SVG로 렌더링
     if graph_df.empty:
         return
 
     df = graph_df.copy()
     df["kwh"] = pd.to_numeric(df["kwh"], errors="coerce").fillna(0.0)
-
     values = df["kwh"].astype(float).tolist()
     labels = df["time"].astype(str).tolist()
+    if not values:
+        return
 
     vmin = min(values)
     vmax = max(values)
-
     if vmax <= vmin:
         vmax = vmin + 1.0
 
     width = 1000
-    chart_top = 30
-    chart_bottom = height - 28
-    chart_left = 34
-    chart_right = width - 20
+    svg_height = max(height - 30, 70)
+    chart_top = 18
+    chart_bottom = svg_height - 24
+    chart_left = 36
+    chart_right = width - 18
 
     points = []
-
     for i, value in enumerate(values):
         x = chart_left + (chart_right - chart_left) * (i / max(len(values) - 1, 1))
         y = chart_bottom - (value - vmin) / (vmax - vmin) * (chart_bottom - chart_top)
         points.append((x, y))
 
     polyline = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
-    area_points = (
-        f"{points[0][0]:.1f},{chart_bottom:.1f} "
-        + polyline
-        + f" {points[-1][0]:.1f},{chart_bottom:.1f}"
-    )
-
-    circles = ""
-
-    for i, (x, y) in enumerate(points):
-        value = values[i]
-        label = labels[i]
-
-        if i in {0, len(points) - 1} or i % 2 == 1:
-            text_y = chart_bottom + 16
-            circles += f'<text x="{x:.1f}" y="{text_y:.1f}" text-anchor="middle" class="axis-label">{escape_html(label)}</text>'
-
-        circles += f"""
-        <circle cx="{x:.1f}" cy="{y:.1f}" r="3.6" class="point-dot">
-            <title>{escape_html(label)} · {value:,.1f} kWh</title>
-        </circle>
-        """
+    area_points = f"{points[0][0]:.1f},{chart_bottom:.1f} " + polyline + f" {points[-1][0]:.1f},{chart_bottom:.1f}"
 
     max_idx = int(np.argmax(values))
     min_idx = int(np.argmin(values))
     max_x, max_y = points[max_idx]
     min_x, min_y = points[min_idx]
 
-    marker_html = f"""
-    <circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="5.5" class="peak-dot">
-        <title>피크 {escape_html(labels[max_idx])} · {values[max_idx]:,.1f} kWh</title>
-    </circle>
-    <text x="{max_x:.1f}" y="{max_y - 9:.1f}" text-anchor="middle" class="peak-label">PEAK {values[max_idx]:,.1f}</text>
-    <circle cx="{min_x:.1f}" cy="{min_y:.1f}" r="5.0" class="off-dot">
-        <title>오프피크 {escape_html(labels[min_idx])} · {values[min_idx]:,.1f} kWh</title>
-    </circle>
-    """
+    grid_html = ""
+    point_html = ""
+    label_html = ""
+    for i, (x, y) in enumerate(points):
+        value = values[i]
+        label = labels[i]
+        grid_html += f'<line x1="{x:.1f}" y1="{chart_top - 3:.1f}" x2="{x:.1f}" y2="{chart_bottom + 4:.1f}" class="v-grid" />'
+        if i % 2 == 0 or i == len(points) - 1:
+            label_html += f'<text x="{x:.1f}" y="{svg_height - 6:.1f}" text-anchor="middle" class="time-label">{escape_html(label)}</text>'
+        point_html += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.8" class="point-dot"><title>{escape_html(label)} · {value:,.1f} kWh</title></circle>'
+
+    peak_text_y = max(max_y - 10, 10)
+    peak_text_anchor = "middle"
+    if max_x < 90:
+        peak_text_anchor = "start"
+    elif max_x > width - 90:
+        peak_text_anchor = "end"
+
+    marker_html = (
+        f'<circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="6.0" class="peak-dot">'
+        f'<title>피크 {escape_html(labels[max_idx])} · {values[max_idx]:,.1f} kWh</title></circle>'
+        f'<text x="{max_x:.1f}" y="{peak_text_y:.1f}" text-anchor="{peak_text_anchor}" class="peak-label">PEAK {values[max_idx]:,.1f}</text>'
+        f'<circle cx="{min_x:.1f}" cy="{min_y:.1f}" r="5.0" class="off-dot">'
+        f'<title>오프피크 {escape_html(labels[min_idx])} · {values[min_idx]:,.1f} kWh</title></circle>'
+    )
 
     html = f"""
     <!DOCTYPE html>
@@ -2039,125 +2038,47 @@ def render_forecast_graph_html(
     <head>
     <meta charset="utf-8" />
     <style>
-        html, body {{
-            margin: 0;
-            padding: 0;
-            background: transparent;
-            font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-            overflow: hidden;
-        }}
-
-        .graph-card {{
-            height: {height}px;
-            box-sizing: border-box;
-            background: #FFFFFF;
-            border: 1px solid rgba(20,20,20,0.16);
-            border-radius: 16px;
-            padding: 9px 12px 6px 12px;
-        }}
-
-        .graph-head {{
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 1px;
-        }}
-
-        .graph-title {{
-            color: #111111;
-            font-size: 13px;
-            font-weight: 850;
-            letter-spacing: -0.04em;
-            line-height: 1.2;
-            white-space: nowrap;
-        }}
-
-        .graph-subtitle {{
-            color: #657386;
-            font-size: 10.5px;
-            font-weight: 560;
-            line-height: 1.2;
-            text-align: right;
-            white-space: nowrap;
-        }}
-
-        svg {{
-            width: 100%;
-            height: {height - 34}px;
-            display: block;
-        }}
-
-        .grid-line {{
-            stroke: rgba(20,20,20,0.08);
-            stroke-width: 1;
-        }}
-
-        .axis-label {{
-            fill: #777D86;
-            font-size: 10px;
-            font-weight: 600;
-        }}
-
-        .line {{
-            fill: none;
-            stroke: #1F78B4;
-            stroke-width: 4;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }}
-
-        .area {{
-            fill: rgba(31,120,180,0.13);
-        }}
-
-        .point-dot {{
-            fill: #FFFFFF;
-            stroke: #1F78B4;
-            stroke-width: 2.3;
-        }}
-
-        .peak-dot {{
-            fill: #FF3F4F;
-            stroke: #FFFFFF;
-            stroke-width: 2.2;
-        }}
-
-        .off-dot {{
-            fill: #657386;
-            stroke: #FFFFFF;
-            stroke-width: 2.2;
-        }}
-
-        .peak-label {{
-            fill: #FF3F4F;
-            font-size: 10.5px;
-            font-weight: 850;
-        }}
+        html, body {{ margin: 0; padding: 0; background: transparent; font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; overflow: hidden; }}
+        .forecast-wrap {{ height: {height}px; box-sizing: border-box; padding: 2px 3px 0 3px; background: transparent; }}
+        .forecast-head {{ display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 24px; margin: 0 2px 1px 2px; border-bottom: 1px solid rgba(20,20,20,0.08); }}
+        .forecast-title {{ color: #111111; font-size: 13px; font-weight: 850; letter-spacing: -0.045em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .forecast-subtitle {{ color: #657386; font-size: 10.5px; font-weight: 600; line-height: 1; text-align: right; white-space: nowrap; }}
+        svg {{ width: 100%; height: {svg_height}px; display: block; }}
+        .h-grid {{ stroke: rgba(20,20,20,0.08); stroke-width: 1; }}
+        .v-grid {{ stroke: rgba(20,20,20,0.07); stroke-width: 1; stroke-dasharray: 3 5; }}
+        .area {{ fill: rgba(31,120,180,0.12); }}
+        .line {{ fill: none; stroke: #1592D1; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }}
+        .point-dot {{ fill: #FFFFFF; stroke: #1592D1; stroke-width: 2.2; }}
+        .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 2.2; }}
+        .off-dot {{ fill: #657386; stroke: #FFFFFF; stroke-width: 2.0; }}
+        .peak-label {{ fill: #FF3F4F; font-size: 10.5px; font-weight: 900; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
+        .time-label {{ fill: #555C66; font-size: 10px; font-weight: 650; }}
+        .axis-caption {{ fill: #8A8F98; font-size: 9.5px; font-weight: 650; }}
     </style>
     </head>
     <body>
-        <div class="graph-card">
-            <div class="graph-head">
-                <div class="graph-title">{escape_html(title)}</div>
-                <div class="graph-subtitle">{escape_html(subtitle)}</div>
+        <div class="forecast-wrap">
+            <div class="forecast-head">
+                <div class="forecast-title">{escape_html(title)}</div>
+                <div class="forecast-subtitle">{escape_html(subtitle)}</div>
             </div>
-            <svg viewBox="0 0 {width} {height - 34}" preserveAspectRatio="none">
-                <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="grid-line" />
-                <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2}" class="grid-line" />
-                <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="grid-line" />
+            <svg viewBox="0 0 {width} {svg_height}" preserveAspectRatio="none">
+                <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="h-grid" />
+                <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
+                <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
+                {grid_html}
                 <polygon points="{area_points}" class="area" />
                 <polyline points="{polyline}" class="line" />
-                {circles}
+                {point_html}
                 {marker_html}
+                {label_html}
+                <text x="4" y="{chart_top + 4:.1f}" class="axis-caption">kWh</text>
             </svg>
         </div>
     </body>
     </html>
     """
-
     components.html(html, height=height, scrolling=False)
-
 
 def build_selected_detail_html(
     selected_label: str,
@@ -2781,20 +2702,28 @@ map_gdf = prepare_map_gdf(
     focus_zone_id=focus_zone_id,
 )
 
-graph_df = build_forecast_graph_df(
-    store=store,
-    sample_idx=sample_idx,
-    area_info=area_info,
-    selected_zone_id=selected_zone_id,
-    has_query=bool(st.session_state.has_query),
-)
+# 왼쪽 하단 그래프: 항상 서울시 전체 총합 6시간 예측
+left_graph_df = store.forecast_series(sample_idx, None, PEAK_WINDOW_HORIZONS)
+left_graph_df["target"] = "서울시 전체"
+left_graph_title = "6시간 충전수요 예측 · 서울시 전체"
+left_graph_subtitle = f"{selected_dt:%Y-%m-%d %H:%M} 기준 · {model_label}"
 
+# 가운데 하단 그래프:
+# - 최초 접속: 현재 시점 30분 후 수요급증알림 1위 생활권
+# - LLM 조회 후: 사용자가 요청한 날짜/시간/위치의 생활권
 if st.session_state.has_query:
-    graph_title = f"6시간 충전수요 예측 · {selected_label}"
-    graph_subtitle = f"{selected_dt:%Y-%m-%d %H:%M} 기준 · {model_label}"
+    right_graph_zone_id = selected_zone_id
+    right_graph_label = selected_label
+    right_graph_prefix = "선택 생활권"
 else:
-    graph_title = "6시간 충전수요 예측 · 서울시 전체"
-    graph_subtitle = f"{selected_dt:%Y-%m-%d %H:%M} 기준 · {model_label}"
+    right_graph_zone_id = str(top10["생활권역ID"].iloc[0]) if not top10.empty else selected_zone_id
+    right_graph_label, _ = get_selected_area(area_info, right_graph_zone_id)
+    right_graph_prefix = "급증 생활권"
+
+right_graph_df = store.forecast_series(sample_idx, right_graph_zone_id, PEAK_WINDOW_HORIZONS)
+right_graph_df["target"] = right_graph_label
+right_graph_title = f"6시간 충전수요 예측 · {right_graph_prefix} · {right_graph_label}"
+right_graph_subtitle = f"{selected_dt:%Y-%m-%d %H:%M} 기준 · {model_label}"
 
 
 selected_detail_html = None
@@ -2823,10 +2752,10 @@ alert_col, map_col, chat_col = st.columns([0.86, 1.42, 0.78], gap="small")
 
 
 # =========================================================
-# 1. 왼쪽: 수요 급증 알림 + 12-step 그래프
+# 1. 왼쪽: 수요 급증 알림 패널 + 별도 서울시 전체 12-step 그래프 패널
 # =========================================================
 with alert_col:
-    with st.container(border=True, height=PANEL_HEIGHT):
+    with st.container(border=True, height=TOP_PANEL_HEIGHT):
         mark_panel()
 
         panel_title(
@@ -2837,19 +2766,21 @@ with alert_col:
 
         draw_alerts_stack(top10, selected_time)
 
+    with st.container(border=True, height=GRAPH_PANEL_HEIGHT):
+        mark_panel()
         render_forecast_graph_html(
-            graph_df=graph_df,
-            title=graph_title,
-            subtitle=graph_subtitle,
+            graph_df=left_graph_df,
+            title=left_graph_title,
+            subtitle=left_graph_subtitle,
             height=FORECAST_GRAPH_HEIGHT,
         )
 
 
 # =========================================================
-# 2. 가운데: 지도 + 12-step 그래프
+# 2. 가운데: 지도 패널 + 별도 생활권 12-step 그래프 패널
 # =========================================================
 with map_col:
-    with st.container(border=True, height=PANEL_HEIGHT):
+    with st.container(border=True, height=TOP_PANEL_HEIGHT):
         mark_panel()
 
         header_left, header_right = st.columns([0.72, 0.28], gap="small")
@@ -2897,10 +2828,12 @@ with map_col:
 
         render_legend()
 
+    with st.container(border=True, height=GRAPH_PANEL_HEIGHT):
+        mark_panel()
         render_forecast_graph_html(
-            graph_df=graph_df,
-            title=graph_title,
-            subtitle=graph_subtitle,
+            graph_df=right_graph_df,
+            title=right_graph_title,
+            subtitle=right_graph_subtitle,
             height=FORECAST_GRAPH_HEIGHT,
         )
 
