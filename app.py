@@ -1961,11 +1961,7 @@ def render_forecast_graph_html(
     subtitle: str = "",
     height: int = FORECAST_GRAPH_HEIGHT,
 ) -> None:
-    """가시성을 높인 6시간 12-step 꺾은선 그래프.
-
-    SVG를 고정 비율로 축소하지 않고 패널 폭/높이에 맞게 그리되,
-    선·점·라벨을 크게 잡아 작은 패널에서도 잘 보이도록 구성했다.
-    """
+    """서비스의 다른 카드들과 톤을 맞춘 6시간 12-step 꺾은선 그래프."""
     if graph_df.empty:
         return
 
@@ -1984,13 +1980,12 @@ def render_forecast_graph_html(
     if y_max <= y_min:
         y_max = y_min + 1.0
 
-    # 실제 패널 폭과 유사한 viewBox를 사용해 글씨가 너무 작게 축소되지 않게 한다.
     width = 430
-    svg_height = max(height - 54, 150)
+    svg_height = max(height - 78, 140)
     chart_top = 20
     chart_bottom = svg_height - 34
-    chart_left = 46
-    chart_right = width - 18
+    chart_left = 48
+    chart_right = width - 22
 
     points: list[tuple[float, float]] = []
     for i, value in enumerate(values):
@@ -2000,14 +1995,11 @@ def render_forecast_graph_html(
 
     polyline = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
     max_idx = int(np.argmax(values))
-    min_idx = int(np.argmin(values))
     max_x, max_y = points[max_idx]
-    min_x, min_y = points[min_idx]
 
     grid_html = ""
     dot_html = ""
     label_html = ""
-    # 30분 간격 12개를 모두 라벨링하면 복잡하므로 1시간 단위 중심으로 표시
     label_indices = {0, 2, 4, 6, 8, 10, len(points) - 1}
     for i, (x, y) in enumerate(points):
         value = values[i]
@@ -2015,7 +2007,8 @@ def render_forecast_graph_html(
         grid_html += f'<line x1="{x:.1f}" y1="{chart_top:.1f}" x2="{x:.1f}" y2="{chart_bottom:.1f}" class="v-grid" />'
         if i in label_indices:
             label_html += f'<text x="{x:.1f}" y="{svg_height - 8:.1f}" text-anchor="middle" class="time-label">{escape_html(label)}</text>'
-        dot_html += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.6" class="point-dot"><title>{escape_html(label)} · {value:,.1f} kWh</title></circle>'
+        # 마지막 점을 포함한 모든 일반 점은 흰색 내부로 통일
+        dot_html += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.7" class="point-dot"><title>{escape_html(label)} · {value:,.1f} kWh</title></circle>'
 
     peak_anchor = "middle"
     if max_x < 82:
@@ -2028,8 +2021,6 @@ def render_forecast_graph_html(
         f'<circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="7.2" class="peak-dot">'
         f'<title>피크 {escape_html(labels[max_idx])} · {values[max_idx]:,.1f} kWh</title></circle>'
         f'<text x="{max_x:.1f}" y="{peak_label_y:.1f}" text-anchor="{peak_anchor}" class="peak-label">PEAK {values[max_idx]:,.1f}</text>'
-        f'<circle cx="{min_x:.1f}" cy="{min_y:.1f}" r="5.4" class="low-dot">'
-        f'<title>오프피크 {escape_html(labels[min_idx])} · {values[min_idx]:,.1f} kWh</title></circle>'
     )
 
     y_top_text = f"{vmax:,.1f}"
@@ -2042,6 +2033,8 @@ def render_forecast_graph_html(
     <head>
     <meta charset="utf-8" />
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
+
         html, body {{
             margin: 0;
             padding: 0;
@@ -2051,23 +2044,53 @@ def render_forecast_graph_html(
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
             overflow: hidden;
         }}
+
         .forecast-wrap {{
             height: {height}px;
             box-sizing: border-box;
-            padding: 14px 16px 9px 16px;
+            padding: 8px 8px 7px 8px;
             background: transparent;
         }}
+
+        .forecast-card {{
+            height: 100%;
+            box-sizing: border-box;
+            padding: 13px 15px 10px 15px;
+            background: #FFFFFF;
+            border: 1.1px solid rgba(20, 20, 20, 0.18);
+            border-radius: 18px;
+            overflow: hidden;
+        }}
+
         .forecast-head {{
-            height: 34px;
+            height: 37px;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             gap: 10px;
-            margin-bottom: 6px;
+            margin-bottom: 7px;
+            border-bottom: 1px solid rgba(20,20,20,0.07);
         }}
+
+        .forecast-title-wrap {{
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }}
+
+        .forecast-kicker {{
+            color: #1F78B4;
+            font-family: "Holtwood One SC", Georgia, serif;
+            font-size: 9.8px;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+        }}
+
         .forecast-title {{
             color: #111111;
-            font-size: 17px;
+            font-size: 16px;
             font-weight: 900;
             letter-spacing: -0.045em;
             line-height: 1;
@@ -2075,47 +2098,76 @@ def render_forecast_graph_html(
             overflow: hidden;
             text-overflow: ellipsis;
         }}
+
         .forecast-subtitle {{
-            color: #6F7886;
-            font-size: 11.5px;
-            font-weight: 750;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 48%;
+            min-height: 22px;
+            padding: 0 9px;
+            border-radius: 999px;
+            background: #F1F3F5;
+            color: #657386;
+            font-size: 10.5px;
+            font-weight: 780;
+            line-height: 1;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
         }}
+
+        .chart-box {{
+            height: calc(100% - 44px);
+            box-sizing: border-box;
+            padding: 2px 3px 0 0;
+            background: linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 100%);
+            border-radius: 13px;
+        }}
+
         svg {{
             width: 100%;
             height: {svg_height}px;
             display: block;
             overflow: visible;
         }}
-        .h-grid {{ stroke: rgba(20,20,20,0.105); stroke-width: 1; }}
+
+        .h-grid {{ stroke: rgba(20,20,20,0.10); stroke-width: 1; }}
         .v-grid {{ stroke: rgba(20,20,20,0.055); stroke-width: 1; stroke-dasharray: 3 8; }}
         .line {{ fill: none; stroke: #1F78B4; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }}
         .point-dot {{ fill: #FFFFFF; stroke: #1F78B4; stroke-width: 2.4; }}
         .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 2.8; }}
-        .low-dot {{ fill: #FFFFFF; stroke: #657386; stroke-width: 2.6; }}
-        .peak-label {{ fill: #FF3F4F; font-size: 11.5px; font-weight: 950; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
-        .time-label {{ fill: #4C5563; font-size: 10.8px; font-weight: 750; }}
-        .axis-caption {{ fill: #7E8794; font-size: 10.4px; font-weight: 750; }}
+        .peak-label {{ fill: #FF3F4F; font-size: 11.3px; font-weight: 950; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
+        .time-label {{ fill: #4C5563; font-size: 10.4px; font-weight: 750; }}
+        .axis-caption {{ fill: #7E8794; font-size: 10px; font-weight: 750; }}
     </style>
     </head>
     <body>
         <div class="forecast-wrap">
-            <div class="forecast-head">
-                <div class="forecast-title">{escape_html(title)}</div>
-                {subtitle_html}
+            <div class="forecast-card">
+                <div class="forecast-head">
+                    <div class="forecast-title-wrap">
+                        <div class="forecast-kicker">DEMAND FLOW</div>
+                        <div class="forecast-title">{escape_html(title)}</div>
+                    </div>
+                    {subtitle_html}
+                </div>
+                <div class="chart-box">
+                    <svg viewBox="0 0 {width} {svg_height}" preserveAspectRatio="none">
+                        <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="h-grid" />
+                        <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
+                        <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
+                        {grid_html}
+                        <polyline points="{polyline}" class="line" />
+                        {dot_html}
+                        {marker_html}
+                        {label_html}
+                        <text x="3" y="{chart_top + 4:.1f}" class="axis-caption">{y_top_text}</text>
+                        <text x="3" y="{chart_bottom:.1f}" class="axis-caption">{y_bottom_text}</text>
+                    </svg>
+                </div>
             </div>
-            <svg viewBox="0 0 {width} {svg_height}" preserveAspectRatio="none">
-                <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="h-grid" />
-                <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
-                <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
-                {grid_html}
-                <polyline points="{polyline}" class="line" />
-                {dot_html}
-                {marker_html}
-                {label_html}
-                <text x="3" y="{chart_top + 4:.1f}" class="axis-caption">{y_top_text}</text>
-                <text x="3" y="{chart_bottom:.1f}" class="axis-caption">{y_bottom_text}</text>
-            </svg>
         </div>
     </body>
     </html>
