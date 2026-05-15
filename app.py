@@ -1969,63 +1969,93 @@ def render_forecast_graph_html(
     df["kwh"] = pd.to_numeric(df["kwh"], errors="coerce").fillna(0.0)
     values = df["kwh"].astype(float).tolist()
     labels = df["time"].astype(str).tolist()
+
     if not values:
         return
 
     vmin = min(values)
     vmax = max(values)
+
     pad = max((vmax - vmin) * 0.24, max(vmax * 0.035, 1.0))
     y_min = max(0.0, vmin - pad)
     y_max = vmax + pad
+
     if y_max <= y_min:
         y_max = y_min + 1.0
 
-    # alert column 실제 폭에 가깝게 잡아 텍스트가 납작하게 압축되지 않도록 함
     width = 430
-    svg_height = max(height - 78, 150)
+
+    # 상단 DEMAND FLOW 글씨가 잘리지 않도록 헤더 높이와 SVG 높이를 재조정
+    svg_height = max(height - 86, 145)
+
     chart_top = 26
     chart_bottom = svg_height - 32
     chart_left = 48
     chart_right = width - 20
 
     points: list[tuple[float, float]] = []
+
     for i, value in enumerate(values):
         x = chart_left + (chart_right - chart_left) * (i / max(len(values) - 1, 1))
         y = chart_bottom - (value - y_min) / (y_max - y_min) * (chart_bottom - chart_top)
         points.append((x, y))
 
     polyline = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+
     max_idx = int(np.argmax(values))
     max_x, max_y = points[max_idx]
 
     grid_html = ""
     dot_html = ""
     label_html = ""
+
     label_indices = {0, 2, 4, 6, 8, 10, len(points) - 1}
+
     for i, (x, y) in enumerate(points):
         value = values[i]
         label = labels[i]
-        grid_html += f'<line x1="{x:.1f}" y1="{chart_top:.1f}" x2="{x:.1f}" y2="{chart_bottom:.1f}" class="v-grid" />'
+
+        grid_html += (
+            f'<line x1="{x:.1f}" y1="{chart_top:.1f}" '
+            f'x2="{x:.1f}" y2="{chart_bottom:.1f}" class="v-grid" />'
+        )
+
         if i in label_indices:
-            label_html += f'<text x="{x:.1f}" y="{svg_height - 8:.1f}" text-anchor="middle" class="time-label">{escape_html(label)}</text>'
-        dot_html += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.6" class="point-dot"><title>{escape_html(label)} · {value:,.1f} kWh</title></circle>'
+            label_html += (
+                f'<text x="{x:.1f}" y="{svg_height - 8:.1f}" '
+                f'text-anchor="middle" class="time-label">{escape_html(label)}</text>'
+            )
+
+        dot_html += (
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.6" class="point-dot">'
+            f'<title>{escape_html(label)} · {value:,.1f} kWh</title>'
+            f'</circle>'
+        )
 
     peak_anchor = "middle"
     if max_x < 82:
         peak_anchor = "start"
     elif max_x > width - 82:
         peak_anchor = "end"
+
     peak_label_y = max(max_y - 13, 12)
 
     marker_html = (
         f'<circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="6.8" class="peak-dot">'
-        f'<title>피크 {escape_html(labels[max_idx])} · {values[max_idx]:,.1f} kWh</title></circle>'
-        f'<text x="{max_x:.1f}" y="{peak_label_y:.1f}" text-anchor="{peak_anchor}" class="peak-label">PEAK {values[max_idx]:,.1f}</text>'
+        f'<title>피크 {escape_html(labels[max_idx])} · {values[max_idx]:,.1f} kWh</title>'
+        f'</circle>'
+        f'<text x="{max_x:.1f}" y="{peak_label_y:.1f}" '
+        f'text-anchor="{peak_anchor}" class="peak-label">PEAK {values[max_idx]:,.1f}</text>'
     )
 
     y_top_text = f"{vmax:,.1f}"
     y_bottom_text = f"{vmin:,.1f}"
-    subtitle_html = f'<div class="forecast-subtitle">{escape_html(subtitle)}</div>' if subtitle else ""
+
+    subtitle_html = (
+        f'<div class="forecast-subtitle">{escape_html(subtitle)}</div>'
+        if subtitle
+        else ""
+    )
 
     html = f"""
     <!DOCTYPE html>
@@ -2048,21 +2078,22 @@ def render_forecast_graph_html(
         .forecast-wrap {{
             height: {height}px;
             box-sizing: border-box;
-            padding: 0 0 10px 0;
+            padding: 5px 0 10px 0;
             background: #FFFFFF;
-            overflow: hidden;
+            overflow: visible;
         }}
 
         .forecast-head {{
-            height: 58px;
+            height: 66px;
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
             gap: 12px;
-            padding: 0 0 10px 0;
-            margin: 0 0 6px 0;
+            padding: 6px 0 10px 0;
+            margin: 0 0 4px 0;
             border-bottom: 1px solid rgba(20,20,20,0.08);
             box-sizing: border-box;
+            overflow: visible;
         }}
 
         .forecast-title-wrap {{
@@ -2070,6 +2101,8 @@ def render_forecast_graph_html(
             display: flex;
             flex-direction: column;
             gap: 0;
+            padding-top: 1px;
+            overflow: visible;
         }}
 
         .forecast-kicker {{
@@ -2078,10 +2111,11 @@ def render_forecast_graph_html(
             font-size: 12px;
             font-weight: 400;
             letter-spacing: -0.015em;
-            line-height: 1;
-            margin-bottom: 6px;
+            line-height: 1.24;
+            margin-bottom: 5px;
             text-transform: uppercase;
             white-space: nowrap;
+            overflow: visible;
         }}
 
         .forecast-title {{
@@ -2097,7 +2131,7 @@ def render_forecast_graph_html(
 
         .forecast-subtitle {{
             max-width: 58%;
-            padding-top: 6px;
+            padding-top: 10px;
             color: #5F666F;
             font-size: 12px;
             font-weight: 700;
@@ -2110,11 +2144,12 @@ def render_forecast_graph_html(
         }}
 
         .chart-box {{
-            height: calc(100% - 64px);
+            height: calc(100% - 72px);
             box-sizing: border-box;
             padding: 0 2px 0 0;
             background: #FFFFFF;
             border-radius: 14px;
+            overflow: visible;
         }}
 
         svg {{
@@ -2124,14 +2159,57 @@ def render_forecast_graph_html(
             overflow: visible;
         }}
 
-        .h-grid {{ stroke: rgba(20,20,20,0.10); stroke-width: 1; }}
-        .v-grid {{ stroke: rgba(20,20,20,0.045); stroke-width: 1; stroke-dasharray: 3 8; }}
-        .line {{ fill: none; stroke: #1F78B4; stroke-width: 4.4; stroke-linecap: round; stroke-linejoin: round; }}
-        .point-dot {{ fill: #FFFFFF; stroke: #1F78B4; stroke-width: 2.5; }}
-        .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 2.8; }}
-        .peak-label {{ fill: #FF3F4F; font-size: 11.5px; font-weight: 950; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
-        .time-label {{ fill: #4C5563; font-size: 10.5px; font-weight: 750; }}
-        .axis-caption {{ fill: #7E8794; font-size: 10.2px; font-weight: 750; }}
+        .h-grid {{
+            stroke: rgba(20,20,20,0.10);
+            stroke-width: 1;
+        }}
+
+        .v-grid {{
+            stroke: rgba(20,20,20,0.045);
+            stroke-width: 1;
+            stroke-dasharray: 3 8;
+        }}
+
+        .line {{
+            fill: none;
+            stroke: #1F78B4;
+            stroke-width: 4.4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }}
+
+        .point-dot {{
+            fill: #FFFFFF;
+            stroke: #1F78B4;
+            stroke-width: 2.5;
+        }}
+
+        .peak-dot {{
+            fill: #FF3F4F;
+            stroke: #FFFFFF;
+            stroke-width: 2.8;
+        }}
+
+        .peak-label {{
+            fill: #FF3F4F;
+            font-size: 11.5px;
+            font-weight: 950;
+            paint-order: stroke;
+            stroke: #FFFFFF;
+            stroke-width: 3px;
+        }}
+
+        .time-label {{
+            fill: #4C5563;
+            font-size: 10.5px;
+            font-weight: 750;
+        }}
+
+        .axis-caption {{
+            fill: #7E8794;
+            font-size: 10.2px;
+            font-weight: 750;
+        }}
     </style>
     </head>
     <body>
@@ -2143,16 +2221,21 @@ def render_forecast_graph_html(
                 </div>
                 {subtitle_html}
             </div>
+
             <div class="chart-box">
                 <svg viewBox="0 0 {width} {svg_height}" preserveAspectRatio="xMidYMid meet">
                     <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="h-grid" />
                     <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
                     <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
+
                     {grid_html}
+
                     <polyline points="{polyline}" class="line" />
+
                     {dot_html}
                     {marker_html}
                     {label_html}
+
                     <text x="3" y="{chart_top + 4:.1f}" class="axis-caption">{y_top_text}</text>
                     <text x="3" y="{chart_bottom:.1f}" class="axis-caption">{y_bottom_text}</text>
                 </svg>
@@ -2161,6 +2244,7 @@ def render_forecast_graph_html(
     </body>
     </html>
     """
+
     components.html(html, height=height, scrolling=False)
 
 def build_selected_detail_html(
