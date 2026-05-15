@@ -281,13 +281,80 @@ st.markdown(
         min-width: max-content !important;
     }
 
+    /* =========================
+       Streamlit Toggle Fix
+       - 데스크탑에서 글씨가 흰색으로 보이는 문제 방지
+       - 피크모델 / 2D 지도 보기 줄바꿈 방지
+       ========================= */
+    div[data-testid="stToggle"] {
+        margin-top: 0.1rem !important;
+        min-width: max-content !important;
+        width: max-content !important;
+        max-width: none !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stToggle"] * {
+        color: #111111 !important;
+        opacity: 1 !important;
+    }
+
     div[data-testid="stToggle"] label {
+        display: flex !important;
+        align-items: center !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 7px !important;
         color: #111111 !important;
         font-weight: 700 !important;
         white-space: nowrap !important;
         word-break: keep-all !important;
         overflow-wrap: normal !important;
         min-width: max-content !important;
+        width: max-content !important;
+        max-width: none !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stToggle"] label p,
+    div[data-testid="stToggle"] label span,
+    div[data-testid="stToggle"] label div {
+        color: #111111 !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        word-break: keep-all !important;
+        overflow-wrap: normal !important;
+        min-width: max-content !important;
+        max-width: none !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    div[data-testid="stToggle"] [role="switch"] {
+        flex: 0 0 auto !important;
+    }
+
+    .chat-model-toggle-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 112px;
+        width: max-content;
+        max-width: none;
+        white-space: nowrap;
+        overflow: visible;
+    }
+
+    .map-toggle-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 118px;
+        width: max-content;
+        max-width: none;
+        white-space: nowrap;
+        overflow: visible;
     }
 
     div[data-testid="stToggle"] label p {
@@ -2870,11 +2937,15 @@ with map_col:
             )
 
         with header_right:
+            st.markdown('<div class="map-toggle-wrap">', unsafe_allow_html=True)
+
             use_2d = st.toggle(
                 "2D 지도 보기",
                 value=not st.session_state.use_3d_column,
                 key="map_2d_toggle",
             )
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
             next_use_3d = not use_2d
 
@@ -2911,7 +2982,7 @@ with chat_col:
     with st.container(border=True, height=PANEL_HEIGHT):
         mark_panel()
 
-        title_col, model_col = st.columns([0.60, 0.40], gap="small")
+        title_col, model_col = st.columns([0.52, 0.48], gap="small")
 
         with title_col:
             panel_title(
