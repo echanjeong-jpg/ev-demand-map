@@ -1957,11 +1957,9 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
 
 def render_forecast_graph_html(
     graph_df: pd.DataFrame,
-    title: str,
-    subtitle: str = "",
-    height: int = FORECAST_GRAPH_HEIGHT,
+    height: int = 170,
 ) -> None:
-    """외부 Streamlit 패널과 통일감 있게 보이는 6시간 12-step 꺾은선 그래프."""
+    """패널 제목은 Streamlit panel_title()로 그리고, 이 함수는 그래프만 렌더링한다."""
     if graph_df.empty:
         return
 
@@ -1976,7 +1974,7 @@ def render_forecast_graph_html(
     vmin = min(values)
     vmax = max(values)
 
-    pad = max((vmax - vmin) * 0.24, max(vmax * 0.035, 1.0))
+    pad = max((vmax - vmin) * 0.25, max(vmax * 0.035, 1.0))
     y_min = max(0.0, vmin - pad)
     y_max = vmax + pad
 
@@ -1984,12 +1982,10 @@ def render_forecast_graph_html(
         y_max = y_min + 1.0
 
     width = 430
+    svg_height = max(height - 4, 145)
 
-    # 상단 DEMAND FLOW 글씨가 잘리지 않도록 헤더 높이와 SVG 높이를 재조정
-    svg_height = max(height - 86, 145)
-
-    chart_top = 26
-    chart_bottom = svg_height - 32
+    chart_top = 20
+    chart_bottom = svg_height - 30
     chart_left = 48
     chart_right = width - 20
 
@@ -2022,12 +2018,12 @@ def render_forecast_graph_html(
 
         if i in label_indices:
             label_html += (
-                f'<text x="{x:.1f}" y="{svg_height - 8:.1f}" '
+                f'<text x="{x:.1f}" y="{svg_height - 7:.1f}" '
                 f'text-anchor="middle" class="time-label">{escape_html(label)}</text>'
             )
 
         dot_html += (
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.6" class="point-dot">'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" class="point-dot">'
             f'<title>{escape_html(label)} · {value:,.1f} kWh</title>'
             f'</circle>'
         )
@@ -2041,7 +2037,7 @@ def render_forecast_graph_html(
     peak_label_y = max(max_y - 13, 12)
 
     marker_html = (
-        f'<circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="6.8" class="peak-dot">'
+        f'<circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="6.7" class="peak-dot">'
         f'<title>피크 {escape_html(labels[max_idx])} · {values[max_idx]:,.1f} kWh</title>'
         f'</circle>'
         f'<text x="{max_x:.1f}" y="{peak_label_y:.1f}" '
@@ -2051,20 +2047,12 @@ def render_forecast_graph_html(
     y_top_text = f"{vmax:,.1f}"
     y_bottom_text = f"{vmin:,.1f}"
 
-    subtitle_html = (
-        f'<div class="forecast-subtitle">{escape_html(subtitle)}</div>'
-        if subtitle
-        else ""
-    )
-
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <meta charset="utf-8" />
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Holtwood+One+SC&display=swap');
-
         html, body {{
             margin: 0;
             padding: 0;
@@ -2075,81 +2063,13 @@ def render_forecast_graph_html(
             overflow: hidden;
         }}
 
-        .forecast-wrap {{
+        .graph-only-wrap {{
+            width: 100%;
             height: {height}px;
             box-sizing: border-box;
-            padding: 5px 0 10px 0;
-            background: #FFFFFF;
-            overflow: visible;
-        }}
-
-        .forecast-head {{
-            height: 66px;
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 6px 0 10px 0;
-            margin: 0 0 4px 0;
-            border-bottom: 1px solid rgba(20,20,20,0.08);
-            box-sizing: border-box;
-            overflow: visible;
-        }}
-
-        .forecast-title-wrap {{
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            padding-top: 1px;
-            overflow: visible;
-        }}
-
-        .forecast-kicker {{
-            color: #1F78B4;
-            font-family: "Holtwood One SC", Georgia, serif;
-            font-size: 12px;
-            font-weight: 400;
-            letter-spacing: -0.015em;
-            line-height: 1.24;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            white-space: nowrap;
-            overflow: visible;
-        }}
-
-        .forecast-title {{
-            color: #111111;
-            font-size: 22px;
-            font-weight: 900;
-            letter-spacing: -0.06em;
-            line-height: 1.12;
-            white-space: nowrap;
+            padding: 0 0 0 0;
+            background: transparent;
             overflow: hidden;
-            text-overflow: ellipsis;
-        }}
-
-        .forecast-subtitle {{
-            max-width: 58%;
-            padding-top: 10px;
-            color: #5F666F;
-            font-size: 12px;
-            font-weight: 700;
-            line-height: 1.35;
-            text-align: right;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-sizing: border-box;
-        }}
-
-        .chart-box {{
-            height: calc(100% - 72px);
-            box-sizing: border-box;
-            padding: 0 2px 0 0;
-            background: #FFFFFF;
-            border-radius: 14px;
-            overflow: visible;
         }}
 
         svg {{
@@ -2212,34 +2132,25 @@ def render_forecast_graph_html(
         }}
     </style>
     </head>
+
     <body>
-        <div class="forecast-wrap">
-            <div class="forecast-head">
-                <div class="forecast-title-wrap">
-                    <div class="forecast-kicker">DEMAND FLOW</div>
-                    <div class="forecast-title">{escape_html(title)}</div>
-                </div>
-                {subtitle_html}
-            </div>
+        <div class="graph-only-wrap">
+            <svg viewBox="0 0 {width} {svg_height}" preserveAspectRatio="xMidYMid meet">
+                <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="h-grid" />
+                <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
+                <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
 
-            <div class="chart-box">
-                <svg viewBox="0 0 {width} {svg_height}" preserveAspectRatio="xMidYMid meet">
-                    <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="h-grid" />
-                    <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
-                    <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
+                {grid_html}
 
-                    {grid_html}
+                <polyline points="{polyline}" class="line" />
 
-                    <polyline points="{polyline}" class="line" />
+                {dot_html}
+                {marker_html}
+                {label_html}
 
-                    {dot_html}
-                    {marker_html}
-                    {label_html}
-
-                    <text x="3" y="{chart_top + 4:.1f}" class="axis-caption">{y_top_text}</text>
-                    <text x="3" y="{chart_bottom:.1f}" class="axis-caption">{y_bottom_text}</text>
-                </svg>
-            </div>
+                <text x="3" y="{chart_top + 4:.1f}" class="axis-caption">{y_top_text}</text>
+                <text x="3" y="{chart_bottom:.1f}" class="axis-caption">{y_bottom_text}</text>
+            </svg>
         </div>
     </body>
     </html>
@@ -2924,14 +2835,19 @@ with alert_col:
 
         draw_alerts_stack(top10, selected_time)
 
-    with st.container(border=True, height=GRAPH_PANEL_HEIGHT):
-        mark_panel()
-        render_forecast_graph_html(
-            graph_df=left_graph_df,
-            title=left_graph_title,
-            subtitle=left_graph_subtitle,
-            height=FORECAST_GRAPH_HEIGHT,
-        )
+with st.container(border=True, height=GRAPH_PANEL_HEIGHT):
+    mark_panel()
+
+    panel_title(
+        left_graph_title,
+        left_graph_subtitle,
+        kicker="DEMAND FLOW",
+    )
+
+    render_forecast_graph_html(
+        graph_df=left_graph_df,
+        height=FORECAST_GRAPH_HEIGHT - 64,
+    )
 
 
 # =========================================================
