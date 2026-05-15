@@ -1710,18 +1710,13 @@ def render_deck_map_html(payload: dict, animate: bool, height: int) -> None:
 # 알림, 그래프, 채팅 HTML
 # =========================================================
 def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
-    """수요급증알림 카드 5개를 만들고, 화면에는 항상 카드 3개만 깔끔하게 표시한다.
-
-    기존처럼 transform으로 긴 리스트를 위로 밀어 올리면 전환 순간에 위/아래 카드가
-    잘려 보일 수 있다. 이 버전은 5개 카드 중 현재 인덱스 기준 3개만 다시 그리는
-    방식이라, 어느 순간에도 카드 일부가 잘려 보이지 않는다.
-    """
+    """수요급증알림 카드 5개를 만들고, 화면에는 정확히 3개만 보이게 순차 슬라이드한다."""
     if top_df.empty:
         st.info("수요 알림을 생성할 수 없습니다.")
         return
 
     alert_rows = top_df.head(5).copy()
-    card_items: list[dict[str, Any]] = []
+    cards_html = ""
 
     for i, row in enumerate(alert_rows.itertuples(), start=1):
         label = getattr(row, "생활권역표시명", getattr(row, "생활권역ID"))
@@ -1735,20 +1730,27 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         else:
             state, state_kr, state_class, title = "MONITOR", "관찰", "monitor", "수요 변화를 함께 모니터링하세요"
 
-        card_items.append(
-            {
-                "state": state,
-                "state_kr": state_kr,
-                "state_class": state_class,
-                "title": title,
-                "label": str(label),
-                "value": value,
-                "target_time": target_time,
-            }
-        )
+        cards_html += f"""
+        <div class="ev-alert-card">
+            <div class="alert-left"><div class="state-circle {state_class}"><span>{escape_html(state_kr)}</span></div></div>
+            <div class="alert-center">
+                <div class="alert-brand {state_class}">{escape_html(state)}</div>
+                <div class="alert-zone">{escape_html(label)}</div>
+                <div class="alert-copy">{escape_html(title)}</div>
+            </div>
+            <div class="alert-right">
+                <div class="right-label">예측수요</div>
+                <div class="right-value">{value:,.1f} kWh</div>
+                <div class="right-label time">시간</div>
+                <div class="right-value">{escape_html(target_time)}</div>
+            </div>
+        </div>
+        """
 
-    items_json = json.dumps(card_items, ensure_ascii=False)
+    loop_cards_html = cards_html + cards_html
     panel_height = ALERT_HEIGHT
+    step_size = ALERT_CARD_HEIGHT + ALERT_CARD_GAP
+    original_count = len(alert_rows)
 
     html = f"""
     <!DOCTYPE html>
@@ -1769,6 +1771,8 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         }}
 
         .alert-stack-panel {{
+            position: relative;
+            width: 100%;
             height: {panel_height}px;
             overflow: hidden;
             box-sizing: border-box;
@@ -1776,43 +1780,41 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
             background: transparent;
         }}
 
-        .alert-visible-list {{
-            height: {panel_height}px;
+        .alert-scroll-track {{
+            width: 100%;
             display: flex;
             flex-direction: column;
             gap: {ALERT_CARD_GAP}px;
-            opacity: 1;
-            transition: opacity 180ms ease;
-        }}
-
-        .alert-visible-list.fade {{
-            opacity: 0.14;
+            will-change: transform;
+            transform: translateY(0px);
         }}
 
         .ev-alert-card {{
+            width: 100%;
             height: {ALERT_CARD_HEIGHT}px;
             min-height: {ALERT_CARD_HEIGHT}px;
             display: grid;
-            grid-template-columns: 50px minmax(0, 1fr) 96px;
+            grid-template-columns: 48px minmax(0, 1fr) 76px;
             align-items: center;
-            gap: 10px;
+            gap: 9px;
             background: #FFFFFF;
             border: 1.1px solid rgba(20, 20, 20, 0.20);
             border-radius: 18px;
-            padding: 8px 10px;
+            padding: 8px 8px 8px 10px;
             box-sizing: border-box;
             box-shadow: none;
+            overflow: hidden;
         }}
 
         .state-circle {{
-            width: 46px;
-            height: 46px;
+            width: 44px;
+            height: 44px;
             border-radius: 999px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #FFFFFF;
-            font-size: 12px;
+            font-size: 11.7px;
             font-weight: 850;
             letter-spacing: -0.04em;
             box-shadow: none;
@@ -1822,16 +1824,18 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         .state-circle.watch {{ background: #F5A000; }}
         .state-circle.monitor {{ background: #657386; }}
 
-        .alert-center {{ min-width: 0; }}
+        .alert-center {{ min-width: 0; overflow: hidden; }}
 
         .alert-brand {{
             font-family: "Holtwood One SC", Georgia, serif;
-            font-size: 10.3px;
+            font-size: 10.0px;
             font-weight: 400;
             letter-spacing: -0.02em;
             line-height: 1;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }}
 
         .alert-brand.hot {{ color: #FF3F4F; }}
@@ -1840,121 +1844,110 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
 
         .alert-zone {{
             color: #111111;
-            font-size: 13.8px;
+            font-size: 13.4px;
             font-weight: 900;
-            letter-spacing: -0.05em;
-            line-height: 1.16;
+            letter-spacing: -0.052em;
+            line-height: 1.15;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }}
 
         .alert-copy {{
-            margin-top: 5px;
+            margin-top: 4px;
             color: #555C66;
-            font-size: 10.4px;
+            font-size: 9.8px;
             font-weight: 550;
-            line-height: 1.24;
+            line-height: 1.22;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }}
 
         .alert-right {{
+            width: 76px;
+            min-width: 0;
             display: grid;
             justify-items: end;
             align-items: center;
+            overflow: hidden;
         }}
 
         .right-label {{
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 67px;
-            height: 19px;
+            width: 58px;
+            max-width: 58px;
+            height: 18px;
             border-radius: 999px;
             background: #9A9A9A;
             color: #FFFFFF;
-            font-size: 9.6px;
+            font-size: 8.8px;
             font-weight: 700;
             line-height: 1;
+            white-space: nowrap;
+            overflow: hidden;
         }}
 
-        .right-label.time {{ margin-top: 5px; }}
+        .right-label.time {{ margin-top: 4px; }}
 
         .right-value {{
+            width: 74px;
+            max-width: 74px;
             color: #111111;
-            font-size: 12.7px;
+            font-size: 11.4px;
             font-weight: 800;
-            line-height: 1.08;
+            line-height: 1.05;
             margin-top: 3px;
             white-space: nowrap;
-            letter-spacing: -0.025em;
+            letter-spacing: -0.035em;
+            text-align: right;
+            overflow: hidden;
+            text-overflow: clip;
         }}
     </style>
     </head>
     <body>
-        <div class="alert-stack-panel">
-            <div class="alert-visible-list" id="alertList"></div>
+        <div class="alert-stack-panel" id="alertPanel">
+            <div class="alert-scroll-track" id="alertTrack">
+                {loop_cards_html}
+            </div>
         </div>
 
         <script>
-            const items = {items_json};
-            const list = document.getElementById("alertList");
-            let startIndex = 0;
+            const panel = document.getElementById("alertPanel");
+            const track = document.getElementById("alertTrack");
+            const originalCount = {original_count};
+            const stepSize = {step_size};
+            const moveDuration = 720;
+            const holdDuration = 1900;
+            let index = 0;
             let paused = false;
 
-            function esc(value) {{
-                return String(value ?? "")
-                    .replaceAll("&", "&amp;")
-                    .replaceAll("<", "&lt;")
-                    .replaceAll(">", "&gt;");
-            }}
-
-            function cardHTML(item) {{
-                return `
-                    <div class="ev-alert-card">
-                        <div class="alert-left">
-                            <div class="state-circle ${{item.state_class}}"><span>${{esc(item.state_kr)}}</span></div>
-                        </div>
-                        <div class="alert-center">
-                            <div class="alert-brand ${{item.state_class}}">${{esc(item.state)}}</div>
-                            <div class="alert-zone">${{esc(item.label)}}</div>
-                            <div class="alert-copy">${{esc(item.title)}}</div>
-                        </div>
-                        <div class="alert-right">
-                            <div class="right-label">예측수요</div>
-                            <div class="right-value">${{Number(item.value).toFixed(1)}} kWh</div>
-                            <div class="right-label time">시간</div>
-                            <div class="right-value">${{esc(item.target_time)}}</div>
-                        </div>
-                    </div>`;
-            }}
-
-            function render() {{
-                const visible = [];
-                for (let i = 0; i < {ALERT_VISIBLE_CARDS}; i++) {{
-                    visible.push(items[(startIndex + i) % items.length]);
-                }}
-                list.innerHTML = visible.map(cardHTML).join("");
+            function moveTo(nextIndex, withTransition = true) {{
+                track.style.transition = withTransition ? `transform ${{moveDuration}}ms cubic-bezier(0.22, 1, 0.36, 1)` : "none";
+                track.style.transform = `translateY(-${{nextIndex * stepSize}}px)`;
             }}
 
             function tick() {{
-                if (!paused && items.length > {ALERT_VISIBLE_CARDS}) {{
-                    list.classList.add("fade");
-                    setTimeout(() => {{
-                        startIndex = (startIndex + 1) % items.length;
-                        render();
-                        list.classList.remove("fade");
-                    }}, 180);
+                if (!paused && originalCount > {ALERT_VISIBLE_CARDS}) {{
+                    index += 1;
+                    moveTo(index, true);
+                    if (index >= originalCount) {{
+                        setTimeout(() => {{
+                            index = 0;
+                            moveTo(0, false);
+                            void track.offsetHeight;
+                        }}, moveDuration + 20);
+                    }}
                 }}
-                setTimeout(tick, 2100);
+                setTimeout(tick, holdDuration + moveDuration);
             }}
 
-            list.addEventListener("mouseenter", () => paused = true);
-            list.addEventListener("mouseleave", () => paused = false);
-            render();
-            setTimeout(tick, 2100);
+            panel.addEventListener("mouseenter", () => paused = true);
+            panel.addEventListener("mouseleave", () => paused = false);
+            setTimeout(tick, holdDuration);
         </script>
     </body>
     </html>
@@ -2099,7 +2092,7 @@ def render_forecast_graph_html(
         .line {{ fill: none; stroke: #1F78B4; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }}
         .point-dot {{ fill: #FFFFFF; stroke: #1F78B4; stroke-width: 2.4; }}
         .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 2.8; }}
-        .low-dot {{ fill: #657386; stroke: #FFFFFF; stroke-width: 2.2; }}
+        .low-dot {{ fill: #FFFFFF; stroke: #657386; stroke-width: 2.6; }}
         .peak-label {{ fill: #FF3F4F; font-size: 11.5px; font-weight: 950; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
         .time-label {{ fill: #4C5563; font-size: 10.8px; font-weight: 750; }}
         .axis-caption {{ fill: #7E8794; font-size: 10.4px; font-weight: 750; }}
