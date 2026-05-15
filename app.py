@@ -66,14 +66,14 @@ PANEL_HEIGHT = 625
 
 # 왼쪽만 상단 알림 패널 + 하단 그래프 패널로 분리
 # 가운데 지도와 오른쪽 LLM 패널은 기존 크기 유지
-LEFT_TOP_PANEL_HEIGHT = 492
-GRAPH_PANEL_HEIGHT = 125
+LEFT_TOP_PANEL_HEIGHT = 430
+GRAPH_PANEL_HEIGHT = 187
 MAP_HEIGHT = 485
-FORECAST_GRAPH_HEIGHT = 105
+FORECAST_GRAPH_HEIGHT = 167
 
 # 알림 스택: 5개 데이터 생성, 화면에는 정확히 3개만 보이도록 고정
-ALERT_CARD_HEIGHT = 98
-ALERT_CARD_GAP = 13
+ALERT_CARD_HEIGHT = 91
+ALERT_CARD_GAP = 10
 ALERT_VISIBLE_CARDS = 3
 ALERT_HEIGHT = ALERT_CARD_HEIGHT * ALERT_VISIBLE_CARDS + ALERT_CARD_GAP * (ALERT_VISIBLE_CARDS - 1)
 
@@ -1789,27 +1789,27 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         .ev-alert-card {{
             height: {ALERT_CARD_HEIGHT}px;
             display: grid;
-            grid-template-columns: 56px minmax(0, 1fr) 98px;
+            grid-template-columns: 52px minmax(0, 1fr) 94px;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             background: #FFFFFF;
             border: 1.1px solid rgba(20, 20, 20, 0.20);
             border-radius: 18px;
-            padding: 11px 12px;
+            padding: 9px 11px;
             box-sizing: border-box;
             margin-bottom: {ALERT_CARD_GAP}px;
             box-shadow: none;
         }}
 
         .state-circle {{
-            width: 51px;
-            height: 51px;
+            width: 48px;
+            height: 48px;
             border-radius: 999px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #FFFFFF;
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 800;
             letter-spacing: -0.035em;
             box-shadow: none;
@@ -1838,7 +1838,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
 
         .alert-zone {{
             color: #111111;
-            font-size: 14.5px;
+            font-size: 14px;
             font-weight: 850;
             letter-spacing: -0.045em;
             line-height: 1.22;
@@ -1849,7 +1849,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         .alert-copy {{
             margin-top: 5px;
             color: #555C66;
-            font-size: 10.8px;
+            font-size: 10.5px;
             font-weight: 500;
             line-height: 1.3;
             word-break: keep-all;
@@ -1866,7 +1866,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 68px;
+            min-width: 65px;
             height: 20px;
             border-radius: 999px;
             background: #9A9A9A;
@@ -1882,7 +1882,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
 
         .right-value {{
             color: #111111;
-            font-size: 12.7px;
+            font-size: 12.4px;
             font-weight: 750;
             line-height: 1.15;
             margin-top: 4px;
@@ -1987,12 +1987,12 @@ def render_forecast_graph_html(
     if y_max <= y_min:
         y_max = y_min + 1.0
 
-    width = 1000
-    svg_height = max(height - 27, 72)
-    chart_top = 13
-    chart_bottom = svg_height - 23
-    chart_left = 44
-    chart_right = width - 22
+    width = 720
+    svg_height = max(height - 35, 112)
+    chart_top = 18
+    chart_bottom = svg_height - 30
+    chart_left = 48
+    chart_right = width - 24
 
     points: list[tuple[float, float]] = []
     for i, value in enumerate(values):
@@ -2015,9 +2015,9 @@ def render_forecast_graph_html(
         value = values[i]
         label = labels[i]
         grid_html += f'<line x1="{x:.1f}" y1="{chart_top:.1f}" x2="{x:.1f}" y2="{chart_bottom:.1f}" class="v-grid" />'
-        if i in {0, 2, 4, 6, 8, 10, len(points) - 1}:
+        if i in {0, 3, 6, 9, len(points) - 1}:
             label_html += f'<text x="{x:.1f}" y="{svg_height - 6:.1f}" text-anchor="middle" class="time-label">{escape_html(label)}</text>'
-        dot_html += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.6" class="point-dot"><title>{escape_html(label)} · {value:,.1f} kWh</title></circle>'
+        dot_html += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.2" class="point-dot"><title>{escape_html(label)} · {value:,.1f} kWh</title></circle>'
 
     peak_anchor = "middle"
     if max_x < 100:
@@ -2030,10 +2030,10 @@ def render_forecast_graph_html(
     value_max_text = f"{vmax:,.1f}"
 
     marker_html = (
-        f'<circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="6.4" class="peak-dot">'
+        f'<circle cx="{max_x:.1f}" cy="{max_y:.1f}" r="6.8" class="peak-dot">'
         f'<title>피크 {escape_html(labels[max_idx])} · {values[max_idx]:,.1f} kWh</title></circle>'
         f'<text x="{max_x:.1f}" y="{peak_label_y:.1f}" text-anchor="{peak_anchor}" class="peak-label">PEAK {values[max_idx]:,.1f}</text>'
-        f'<circle cx="{min_x:.1f}" cy="{min_y:.1f}" r="5.2" class="low-dot">'
+        f'<circle cx="{min_x:.1f}" cy="{min_y:.1f}" r="5.4" class="low-dot">'
         f'<title>오프피크 {escape_html(labels[min_idx])} · {values[min_idx]:,.1f} kWh</title></circle>'
     )
 
@@ -2046,21 +2046,21 @@ def render_forecast_graph_html(
     <meta charset="utf-8" />
     <style>
         html, body {{ margin: 0; padding: 0; background: transparent; font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; overflow: hidden; }}
-        .forecast-wrap {{ height: {height}px; box-sizing: border-box; padding: 5px 7px 0 7px; background: transparent; }}
-        .forecast-head {{ height: 22px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }}
-        .forecast-title {{ color: #111111; font-size: 13px; font-weight: 900; letter-spacing: -0.045em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-        .forecast-subtitle {{ color: #7B8492; font-size: 10.2px; font-weight: 650; white-space: nowrap; }}
-        .svg-card {{ width: 100%; height: {svg_height}px; display: block; }}
-        .h-grid {{ stroke: rgba(20,20,20,0.075); stroke-width: 1; }}
+        .forecast-wrap {{ height: {height}px; box-sizing: border-box; padding: 7px 10px 2px 10px; background: transparent; }}
+        .forecast-head {{ height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }}
+        .forecast-title {{ color: #111111; font-size: 15px; font-weight: 900; letter-spacing: -0.045em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .forecast-subtitle {{ color: #7B8492; font-size: 11px; font-weight: 700; white-space: nowrap; }}
+        .svg-card {{ width: 100%; height: {svg_height}px; display: block; overflow: visible; }}
+        .h-grid {{ stroke: rgba(20,20,20,0.08); stroke-width: 1; }}
         .v-grid {{ stroke: rgba(20,20,20,0.055); stroke-width: 1; stroke-dasharray: 3 7; }}
-        .area {{ fill: rgba(31,120,180,0.13); }}
-        .line {{ fill: none; stroke: #1F78B4; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }}
-        .point-dot {{ fill: #FFFFFF; stroke: #1F78B4; stroke-width: 2.1; }}
-        .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 2.4; }}
-        .low-dot {{ fill: #657386; stroke: #FFFFFF; stroke-width: 2.0; }}
-        .peak-label {{ fill: #FF3F4F; font-size: 10.5px; font-weight: 900; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
-        .time-label {{ fill: #5F666F; font-size: 9.8px; font-weight: 700; }}
-        .axis-caption {{ fill: #8A8F98; font-size: 9px; font-weight: 700; }}
+        .area {{ fill: rgba(31,120,180,0.16); }}
+        .line {{ fill: none; stroke: #1F78B4; stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }}
+        .point-dot {{ fill: #FFFFFF; stroke: #1F78B4; stroke-width: 2.3; }}
+        .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 2.5; }}
+        .low-dot {{ fill: #657386; stroke: #FFFFFF; stroke-width: 2.1; }}
+        .peak-label {{ fill: #FF3F4F; font-size: 11px; font-weight: 900; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
+        .time-label {{ fill: #5F666F; font-size: 10.5px; font-weight: 750; }}
+        .axis-caption {{ fill: #8A8F98; font-size: 9.8px; font-weight: 750; }}
     </style>
     </head>
     <body>
@@ -2069,7 +2069,7 @@ def render_forecast_graph_html(
                 <div class="forecast-title">{escape_html(title)}</div>
                 {subtitle_html}
             </div>
-            <svg class="svg-card" viewBox="0 0 {width} {svg_height}" preserveAspectRatio="none">
+            <svg class="svg-card" viewBox="0 0 {width} {svg_height}" preserveAspectRatio="xMidYMid meet">
                 <line x1="{chart_left}" y1="{chart_top}" x2="{chart_right}" y2="{chart_top}" class="h-grid" />
                 <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
                 <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
