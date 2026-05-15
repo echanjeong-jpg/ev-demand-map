@@ -1982,9 +1982,9 @@ def render_forecast_graph_html(
 
     # alert column 실제 폭에 가깝게 잡아 텍스트가 납작하게 압축되지 않도록 함
     width = 430
-    svg_height = max(height - 70, 150)
-    chart_top = 24
-    chart_bottom = svg_height - 34
+    svg_height = max(height - 78, 150)
+    chart_top = 26
+    chart_bottom = svg_height - 32
     chart_left = 48
     chart_right = width - 20
 
@@ -2048,19 +2048,19 @@ def render_forecast_graph_html(
         .forecast-wrap {{
             height: {height}px;
             box-sizing: border-box;
-            padding: 16px 17px 13px 17px;
+            padding: 0 0 10px 0;
             background: #FFFFFF;
             overflow: hidden;
         }}
 
         .forecast-head {{
-            height: 43px;
+            height: 58px;
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
             gap: 12px;
-            padding-bottom: 8px;
-            margin-bottom: 5px;
+            padding: 0 0 10px 0;
+            margin: 0 0 6px 0;
             border-bottom: 1px solid rgba(20,20,20,0.08);
             box-sizing: border-box;
         }}
@@ -2069,25 +2069,27 @@ def render_forecast_graph_html(
             min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 0;
         }}
 
         .forecast-kicker {{
             color: #1F78B4;
             font-family: "Holtwood One SC", Georgia, serif;
-            font-size: 11px;
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: -0.015em;
             line-height: 1;
-            letter-spacing: -0.018em;
+            margin-bottom: 6px;
             text-transform: uppercase;
             white-space: nowrap;
         }}
 
         .forecast-title {{
             color: #111111;
-            font-size: 17px;
+            font-size: 22px;
             font-weight: 900;
-            letter-spacing: -0.055em;
-            line-height: 1;
+            letter-spacing: -0.06em;
+            line-height: 1.12;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -2095,11 +2097,11 @@ def render_forecast_graph_html(
 
         .forecast-subtitle {{
             max-width: 58%;
-            padding-top: 2px;
-            color: #657386;
-            font-size: 11px;
+            padding-top: 6px;
+            color: #5F666F;
+            font-size: 12px;
             font-weight: 700;
-            line-height: 1.25;
+            line-height: 1.35;
             text-align: right;
             white-space: nowrap;
             overflow: hidden;
@@ -2108,9 +2110,9 @@ def render_forecast_graph_html(
         }}
 
         .chart-box {{
-            height: calc(100% - 48px);
+            height: calc(100% - 64px);
             box-sizing: border-box;
-            padding: 2px 3px 0 0;
+            padding: 0 2px 0 0;
             background: #FFFFFF;
             border-radius: 14px;
         }}
