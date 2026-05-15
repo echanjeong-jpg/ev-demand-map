@@ -2835,19 +2835,19 @@ with alert_col:
 
         draw_alerts_stack(top10, selected_time)
 
-with st.container(border=True, height=GRAPH_PANEL_HEIGHT):
-    mark_panel()
+    with st.container(border=True, height=GRAPH_PANEL_HEIGHT):
+        mark_panel()
 
-    panel_title(
-        left_graph_title,
-        left_graph_subtitle,
-        kicker="DEMAND FLOW",
-    )
+        panel_title(
+            left_graph_title,
+            left_graph_subtitle,
+            kicker="DEMAND FLOW",
+        )
 
-    render_forecast_graph_html(
-        graph_df=left_graph_df,
-        height=FORECAST_GRAPH_HEIGHT - 64,
-    )
+        render_forecast_graph_html(
+            graph_df=left_graph_df,
+            height=FORECAST_GRAPH_HEIGHT - 64,
+        )
 
 
 # =========================================================
