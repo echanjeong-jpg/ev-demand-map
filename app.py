@@ -66,14 +66,14 @@ PANEL_HEIGHT = 625
 
 # 왼쪽만 상단 알림 패널 + 하단 그래프 패널로 분리
 # 가운데 지도와 오른쪽 LLM 패널은 기존 크기 유지
-LEFT_TOP_PANEL_HEIGHT = 430
-GRAPH_PANEL_HEIGHT = 187
+LEFT_TOP_PANEL_HEIGHT = 390
+GRAPH_PANEL_HEIGHT = 227
 MAP_HEIGHT = 485
-FORECAST_GRAPH_HEIGHT = 167
+FORECAST_GRAPH_HEIGHT = 207
 
 # 알림 스택: 5개 데이터 생성, 화면에는 정확히 3개만 보이도록 고정
-ALERT_CARD_HEIGHT = 91
-ALERT_CARD_GAP = 10
+ALERT_CARD_HEIGHT = 86
+ALERT_CARD_GAP = 9
 ALERT_VISIBLE_CARDS = 3
 ALERT_HEIGHT = ALERT_CARD_HEIGHT * ALERT_VISIBLE_CARDS + ALERT_CARD_GAP * (ALERT_VISIBLE_CARDS - 1)
 
@@ -1777,7 +1777,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
             height: {ALERT_HEIGHT}px;
             overflow: hidden;
             box-sizing: border-box;
-            padding: 2px 2px 0 0;
+            padding: 0 2px 6px 0;
             background: transparent;
         }}
 
@@ -1789,21 +1789,21 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         .ev-alert-card {{
             height: {ALERT_CARD_HEIGHT}px;
             display: grid;
-            grid-template-columns: 52px minmax(0, 1fr) 94px;
+            grid-template-columns: 50px minmax(0, 1fr) 92px;
             align-items: center;
-            gap: 10px;
+            gap: 9px;
             background: #FFFFFF;
             border: 1.1px solid rgba(20, 20, 20, 0.20);
             border-radius: 18px;
-            padding: 9px 11px;
+            padding: 8px 10px;
             box-sizing: border-box;
             margin-bottom: {ALERT_CARD_GAP}px;
             box-shadow: none;
         }}
 
         .state-circle {{
-            width: 48px;
-            height: 48px;
+            width: 46px;
+            height: 46px;
             border-radius: 999px;
             display: flex;
             align-items: center;
@@ -1838,7 +1838,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
 
         .alert-zone {{
             color: #111111;
-            font-size: 14px;
+            font-size: 13.6px;
             font-weight: 850;
             letter-spacing: -0.045em;
             line-height: 1.22;
@@ -1849,7 +1849,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
         .alert-copy {{
             margin-top: 5px;
             color: #555C66;
-            font-size: 10.5px;
+            font-size: 10.2px;
             font-weight: 500;
             line-height: 1.3;
             word-break: keep-all;
@@ -1958,7 +1958,7 @@ def draw_alerts_stack(top_df: pd.DataFrame, selected_time: str) -> None:
     </html>
     """
 
-    components.html(html, height=ALERT_HEIGHT, scrolling=False)
+    components.html(html, height=ALERT_HEIGHT + 8, scrolling=False)
 
 
 def render_forecast_graph_html(
@@ -1987,12 +1987,12 @@ def render_forecast_graph_html(
     if y_max <= y_min:
         y_max = y_min + 1.0
 
-    width = 720
-    svg_height = max(height - 35, 112)
-    chart_top = 18
-    chart_bottom = svg_height - 30
-    chart_left = 48
-    chart_right = width - 24
+    width = 1000
+    svg_height = max(height - 42, 150)
+    chart_top = 20
+    chart_bottom = svg_height - 36
+    chart_left = 58
+    chart_right = width - 30
 
     points: list[tuple[float, float]] = []
     for i, value in enumerate(values):
@@ -2001,8 +2001,6 @@ def render_forecast_graph_html(
         points.append((x, y))
 
     polyline = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
-    area_points = f"{points[0][0]:.1f},{chart_bottom:.1f} " + polyline + f" {points[-1][0]:.1f},{chart_bottom:.1f}"
-
     max_idx = int(np.argmax(values))
     min_idx = int(np.argmin(values))
     max_x, max_y = points[max_idx]
@@ -2046,21 +2044,20 @@ def render_forecast_graph_html(
     <meta charset="utf-8" />
     <style>
         html, body {{ margin: 0; padding: 0; background: transparent; font-family: Inter, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; overflow: hidden; }}
-        .forecast-wrap {{ height: {height}px; box-sizing: border-box; padding: 7px 10px 2px 10px; background: transparent; }}
-        .forecast-head {{ height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }}
-        .forecast-title {{ color: #111111; font-size: 15px; font-weight: 900; letter-spacing: -0.045em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-        .forecast-subtitle {{ color: #7B8492; font-size: 11px; font-weight: 700; white-space: nowrap; }}
+        .forecast-wrap {{ height: {height}px; box-sizing: border-box; padding: 9px 12px 4px 12px; background: transparent; }}
+        .forecast-head {{ height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px; }}
+        .forecast-title {{ color: #111111; font-size: 16px; font-weight: 900; letter-spacing: -0.045em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+        .forecast-subtitle {{ color: #7B8492; font-size: 11.5px; font-weight: 700; white-space: nowrap; }}
         .svg-card {{ width: 100%; height: {svg_height}px; display: block; overflow: visible; }}
         .h-grid {{ stroke: rgba(20,20,20,0.08); stroke-width: 1; }}
         .v-grid {{ stroke: rgba(20,20,20,0.055); stroke-width: 1; stroke-dasharray: 3 7; }}
-        .area {{ fill: rgba(31,120,180,0.16); }}
-        .line {{ fill: none; stroke: #1F78B4; stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }}
-        .point-dot {{ fill: #FFFFFF; stroke: #1F78B4; stroke-width: 2.3; }}
-        .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 2.5; }}
-        .low-dot {{ fill: #657386; stroke: #FFFFFF; stroke-width: 2.1; }}
-        .peak-label {{ fill: #FF3F4F; font-size: 11px; font-weight: 900; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
-        .time-label {{ fill: #5F666F; font-size: 10.5px; font-weight: 750; }}
-        .axis-caption {{ fill: #8A8F98; font-size: 9.8px; font-weight: 750; }}
+        .line {{ fill: none; stroke: #1F78B4; stroke-width: 5.8; stroke-linecap: round; stroke-linejoin: round; }}
+        .point-dot {{ fill: #FFFFFF; stroke: #1F78B4; stroke-width: 3.0; }}
+        .peak-dot {{ fill: #FF3F4F; stroke: #FFFFFF; stroke-width: 3.0; }}
+        .low-dot {{ fill: #657386; stroke: #FFFFFF; stroke-width: 2.4; }}
+        .peak-label {{ fill: #FF3F4F; font-size: 12.5px; font-weight: 900; paint-order: stroke; stroke: #FFFFFF; stroke-width: 3px; }}
+        .time-label {{ fill: #5F666F; font-size: 12px; font-weight: 750; }}
+        .axis-caption {{ fill: #8A8F98; font-size: 11px; font-weight: 750; }}
     </style>
     </head>
     <body>
@@ -2074,7 +2071,6 @@ def render_forecast_graph_html(
                 <line x1="{chart_left}" y1="{(chart_top + chart_bottom) / 2:.1f}" x2="{chart_right}" y2="{(chart_top + chart_bottom) / 2:.1f}" class="h-grid" />
                 <line x1="{chart_left}" y1="{chart_bottom}" x2="{chart_right}" y2="{chart_bottom}" class="h-grid" />
                 {grid_html}
-                <polygon points="{area_points}" class="area" />
                 <polyline points="{polyline}" class="line" />
                 {dot_html}
                 {marker_html}
